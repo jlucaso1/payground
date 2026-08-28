@@ -1,0 +1,4 @@
+[install]
+# bun-plugin-tailwind lists `bun` itself as a peer dependency. Auto-installing it pulls a
+# 150 MB copy of the runtime we are already running under.
+peer = false

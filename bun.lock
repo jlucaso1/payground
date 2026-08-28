@@ -34,6 +34,10 @@
       "name": "@payground/core",
       "version": "0.0.0",
     },
+    "packages/dashboard": {
+      "name": "@payground/dashboard",
+      "version": "0.0.0",
+    },
     "packages/mercadopago": {
       "name": "@payground/mercadopago",
       "version": "0.0.0",
@@ -79,6 +83,8 @@
     "@payground/cli": ["@payground/cli@workspace:packages/cli"],
 
     "@payground/core": ["@payground/core@workspace:packages/core"],
+
+    "@payground/dashboard": ["@payground/dashboard@workspace:packages/dashboard"],
 
     "@payground/e2e": ["@payground/e2e@workspace:e2e"],
 

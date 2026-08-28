@@ -2,6 +2,7 @@ import {
   type Minor,
   type Payment,
   type PaymentCommand,
+  type PaymentMethod,
   type PaymentQuery,
   type PaymentState,
   type Result,
@@ -21,6 +22,7 @@ import { type ErrorBody, badRequest, notFound, unprocessable } from '../errors.t
 import { validatePaymentRequest } from '../generated/validate.ts';
 import { serializePayment } from '../serialize/payment.ts';
 import { type PixArtifacts, pixArtifacts } from '../serialize/pix.ts';
+import { type CardBrand, brandFromBin, codesForBrand, consumeCardToken, isCardBrand } from './card-tokens.ts';
 import type { Rendered, ServiceContext } from './context.ts';
 import { decide } from './decision.ts';
 import {
@@ -32,6 +34,9 @@ import {
 } from './methods.ts';
 
 const SEQUENCE_BASE = 1_000_000_000;
+
+/** The catalogue never offers more than 24 instalments in Brazil. */
+const MAX_INSTALLMENTS = 24;
 
 const pixSettings = (context: ServiceContext) => ({
   key: `${context.sandbox.id}@payground.local`,
@@ -88,7 +93,9 @@ function commit(context: ServiceContext, transition: Transition, action: string)
 
 interface ParsedRequest {
   amount: Minor;
-  methodCode: string;
+  /** Absent when a card token carries the brand; resolved before the payment is built. */
+  methodCode: string | null;
+  token: string | null;
   email: string;
   documentType: string | null;
   documentNumber: string | null;
@@ -119,8 +126,10 @@ function parse(body: unknown, now: number): Result<ParsedRequest, ErrorBody> {
     return err(badRequest('invalid parameters', [{ code: 3003, description: 'transaction_amount invalid' }]));
   }
 
-  const methodCode = request.payment_method_id;
-  if (methodCode === undefined || methodKind(methodCode) === null) {
+  const token = request.token ?? null;
+  const methodCode = request.payment_method_id ?? null;
+  // A card token carries the brand, so payment_method_id is optional only when one is given.
+  if (methodCode === null ? token === null : methodKind(methodCode) === null) {
     return err(badRequest('invalid parameters', [{ code: 3004, description: 'payment_method_id invalid' }]));
   }
 
@@ -129,7 +138,16 @@ function parse(body: unknown, now: number): Result<ParsedRequest, ErrorBody> {
     return err(badRequest('invalid parameters', [{ code: 3001, description: 'payer.email invalid' }]));
   }
 
-  const kind = methodKind(methodCode);
+  const installments = request.installments ?? 1;
+  if (!Number.isInteger(installments) || installments < 1 || installments > MAX_INSTALLMENTS) {
+    return err(
+      badRequest('invalid parameters', [
+        { code: 3006, description: `installments must be an integer between 1 and ${MAX_INSTALLMENTS}` },
+      ]),
+    );
+  }
+
+  const kind = token === null && methodCode !== null ? methodKind(methodCode) : 'card';
   const ttl = kind === 'bank_transfer' ? PIX_DEFAULT_TTL_MS : VOUCHER_DEFAULT_TTL_MS;
   let expiresAt: number | null = kind === 'bank_transfer' || kind === 'voucher' ? now + ttl : null;
 
@@ -153,6 +171,7 @@ function parse(body: unknown, now: number): Result<ParsedRequest, ErrorBody> {
   return ok({
     amount: amount.value,
     methodCode,
+    token,
     email,
     documentType: request.payer?.identification?.type ?? null,
     documentNumber: request.payer?.identification?.number ?? null,
@@ -160,11 +179,49 @@ function parse(body: unknown, now: number): Result<ParsedRequest, ErrorBody> {
     externalReference: request.external_reference ?? null,
     notificationUrl: request.notification_url ?? null,
     metadata,
-    installments: request.installments ?? 1,
+    installments,
     binaryMode: request.binary_mode ?? false,
     capture: request.capture ?? true,
     expiresAt,
   });
+}
+
+const brandMismatch = (code: string, brand: CardBrand): ErrorBody =>
+  badRequest('invalid parameters', [
+    { code: 3004, description: `payment_method_id ${code} does not match the card brand ${brand}` },
+  ]);
+
+/**
+ * A card arrives only through a token: the token is consumed here, so a second attempt
+ * with the same token fails exactly as it does against the real API.
+ */
+function resolveMethod(context: ServiceContext, request: ParsedRequest): Result<PaymentMethod, ErrorBody> {
+  if (request.token === null) {
+    const code = request.methodCode;
+    const kind = code === null ? null : methodKind(code);
+    if (code === null || kind === null) {
+      return err(badRequest('invalid parameters', [{ code: 3004, description: 'payment_method_id invalid' }]));
+    }
+    if (kind === 'card') {
+      return err(badRequest('invalid parameters', [{ code: 2062, description: 'card payments require a token' }]));
+    }
+    return ok({ kind, code, card: null });
+  }
+
+  const consumed = consumeCardToken(context, request.token);
+  if (!consumed.ok) return consumed;
+  const { card, debit } = consumed.value;
+
+  const brand = isCardBrand(card.brand) ? card.brand : brandFromBin(card.bin);
+  if (brand === null) {
+    return err(badRequest('invalid parameters', [{ code: 3004, description: 'payment_method_id invalid' }]));
+  }
+
+  const { preferred, allowed } = codesForBrand(brand, debit);
+  const code = request.methodCode ?? preferred;
+  if (!allowed.includes(code)) return err(brandMismatch(code, brand));
+
+  return ok({ kind: 'card', code, card });
 }
 
 export function createPayment(context: ServiceContext, body: unknown): Result<Rendered, ErrorBody> {
@@ -173,15 +230,10 @@ export function createPayment(context: ServiceContext, body: unknown): Result<Re
   if (!parsed.ok) return parsed;
   const request = parsed.value;
 
-  const kind = methodKind(request.methodCode);
-  if (kind === 'card') {
-    return err(badRequest('invalid parameters', [{ code: 2062, description: 'card payments require a token' }]));
-  }
-  if (kind === null) {
-    return err(badRequest('invalid parameters', [{ code: 3004, description: 'payment_method_id invalid' }]));
-  }
+  const resolved = resolveMethod(context, request);
+  if (!resolved.ok) return resolved;
+  const method = resolved.value;
 
-  const method = { kind, code: request.methodCode, card: null };
   const decision = decide({ method, capture: request.capture, binaryMode: request.binaryMode });
   const sequence = SEQUENCE_BASE + context.store.nextSequence('payment');
 

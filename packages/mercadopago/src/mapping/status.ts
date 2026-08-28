@@ -110,7 +110,10 @@ const PAYMENT_TYPE: Record<PaymentMethodKind, PaymentTypeId> = {
   wallet: 'account_money',
 };
 
+/** Debit cards ride the same brands under a `deb`-prefixed catalogue code (`debvisa`). */
+const isDebitCode = (code: string): boolean => code === 'debit_card' || code.startsWith('deb');
+
 export const paymentTypeId = (payment: Payment): PaymentTypeId =>
-  payment.method.kind === 'card' && payment.method.code === 'debit_card'
+  payment.method.kind === 'card' && isDebitCode(payment.method.code)
     ? 'debit_card'
     : PAYMENT_TYPE[payment.method.kind];

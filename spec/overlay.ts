@@ -180,6 +180,13 @@ export const DIVERGENCES: readonly Divergence[] = [
       'https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix',
   },
   {
+    area: 'Node SDK',
+    summary: 'Per-call requestOptions leak into the shared client configuration',
+    detail:
+      'Payment.create and friends assign `this.config.options = {...this.config.options, ...requestOptions}`, so a per-call X-Idempotency-Key is pinned onto the client and reused by every later request. Against the real API this silently replays a stale response; against payground it surfaces as a 409. Use a fresh client per idempotency key, or omit requestOptions.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — dist/clients/payment/index.js',
+  },
+  {
     area: 'Fixtures',
     summary: 'Upstream fixtures use the Orders API status vocabulary for a Payments API resource',
     detail:

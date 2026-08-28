@@ -1,58 +1,74 @@
 #!/usr/bin/env bun
-import { parseArgs } from 'node:util';
-import { VERSION, createServer, type ServerOptions } from '@payground/server';
+import { VERSION } from '@payground/server';
+import { OK, USAGE_ERROR, flag, parseOptions } from './args.ts';
+import { type Env, defaultEnv } from './env.ts';
+import { runBuildDashboard } from './commands/build-dashboard.ts';
+import { runReset } from './commands/reset.ts';
+import { runSandbox } from './commands/sandbox.ts';
+import { runSeed } from './commands/seed.ts';
+import { runStart } from './commands/start.ts';
 
-const USAGE = `payground ${VERSION}
+export const USAGE = `payground ${VERSION} — a stateful sandbox that speaks the Mercado Pago API
 
-Usage:
-  payground start [--port <n>] [--host <addr>]
-  payground --version
-`;
+Usage: payground <command> [options]
 
-function main(argv: string[]): number | null {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      port: { type: 'string' },
-      host: { type: 'string' },
-      version: { type: 'boolean' },
+  start             Run the sandbox server
+  seed              Write deterministic sample payments
+  reset             Delete the data of one or every sandbox
+  sandbox           list | create --name <name> | show <id> | delete <id>
+  build-dashboard   Build the dashboard assets
+
+  -h, --help        Show this help
+  -v, --version     Show the version
+
+Run \`payground <command> --help\` for the options of a command.
+Exit codes: 0 success, 1 failure, 2 bad usage.`;
+
+export async function main(argv: readonly string[], env: Env = defaultEnv()): Promise<number> {
+  const command = argv[0];
+
+  if (command === undefined || command.startsWith('-')) {
+    const parsed = parseOptions(argv, {
       help: { type: 'boolean', short: 'h' },
-    },
-  });
-
-  if (values.version) {
-    console.log(VERSION);
-    return 0;
-  }
-  const command = positionals[0];
-  if (values.help || command === undefined) {
-    console.log(USAGE);
-    return command === undefined && !values.help ? 1 : 0;
-  }
-  if (command !== 'start') {
-    console.error(`unknown command: ${command}`);
-    return 1;
-  }
-
-  const options: ServerOptions = {};
-  if (values.port !== undefined) options.port = Number(values.port);
-  if (values.host !== undefined) options.hostname = values.host;
-
-  const server = createServer(options);
-  console.log(`payground listening on ${server.url.origin}`);
-  if (server.app.defaultSandbox !== null) {
-    console.log(`access token: ${server.app.defaultSandbox.accessToken}`);
-    console.log(`public key:   ${server.app.defaultSandbox.publicKey}`);
-  }
-
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.on(signal, () => {
-      void server.stop(true).then(() => process.exit(0));
+      version: { type: 'boolean', short: 'v' },
     });
+    if (!parsed.ok) {
+      env.io.err(parsed.message);
+      env.io.err(USAGE);
+      return USAGE_ERROR;
+    }
+    if (flag(parsed.values, 'version')) {
+      env.io.out(VERSION);
+      return OK;
+    }
+    if (flag(parsed.values, 'help')) {
+      env.io.out(USAGE);
+      return OK;
+    }
+    env.io.err('missing command');
+    env.io.err(USAGE);
+    return USAGE_ERROR;
   }
-  return null;
+
+  const rest = argv.slice(1);
+  switch (command) {
+    case 'start':
+      return await runStart(rest, env);
+    case 'seed':
+      return runSeed(rest, env);
+    case 'reset':
+      return runReset(rest, env);
+    case 'sandbox':
+      return runSandbox(rest, env);
+    case 'build-dashboard':
+      return await runBuildDashboard(rest, env);
+    default:
+      env.io.err(`unknown command: ${command}`);
+      env.io.err(USAGE);
+      return USAGE_ERROR;
+  }
 }
 
-const code = main(Bun.argv.slice(2));
-if (code !== null) process.exit(code);
+if (import.meta.main) {
+  process.exit(await main(Bun.argv.slice(2)));
+}

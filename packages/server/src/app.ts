@@ -1,4 +1,6 @@
 import { type Clock, type IdGenerator, type RandomSource, type Sandbox, sandboxId } from '@payground/core';
+import { createCardToken, getCardToken } from '@payground/mercadopago/api/card-tokens.ts';
+import { listPaymentMethods } from '@payground/mercadopago/api/payment-methods.ts';
 import {
   createPayment,
   createRefund,
@@ -133,6 +135,22 @@ export function createApp(options: AppOptions = {}): App {
     '/_payground/sandboxes/:id/faults': {
       GET: (request: Request) => send(control.getFaults(deps, path(request, 'id'))),
       PUT: async (request: Request) => send(control.setFaults(deps, path(request, 'id'), await json(request))),
+    },
+
+    '/v1/card_tokens': {
+      POST: endpoint(runtime, ({ service, body }) => fromResult(createCardToken(service, body)), {
+        accepts: ['access_token', 'public_key'],
+      }),
+    },
+    '/v1/card_tokens/:id': {
+      GET: endpoint(runtime, ({ service, request }) => fromResult(getCardToken(service, param(request, 'id'))), {
+        accepts: ['access_token', 'public_key'],
+      }),
+    },
+    '/v1/payment_methods': {
+      GET: endpoint(runtime, ({ service }) => fromResult(listPaymentMethods(service)), {
+        accepts: ['access_token', 'public_key'],
+      }),
     },
 
     '/v1/payments': {

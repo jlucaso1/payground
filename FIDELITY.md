@@ -60,6 +60,12 @@ In the Pix guide sample, tag 26 declares length 60 for 64 characters of content 
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 
+### Node SDK — Per-call requestOptions leak into the shared client configuration
+
+Payment.create and friends assign `this.config.options = {...this.config.options, ...requestOptions}`, so a per-call X-Idempotency-Key is pinned onto the client and reused by every later request. Against the real API this silently replays a stale response; against payground it surfaces as a 409. Use a fresh client per idempotency key, or omit requestOptions.
+
+Source: https://github.com/mercadopago/sdk-nodejs — dist/clients/payment/index.js
+
 ### Fixtures — Upstream fixtures use the Orders API status vocabulary for a Payments API resource
 
 fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.

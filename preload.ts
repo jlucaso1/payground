@@ -10,11 +10,20 @@
 const target = process.env['PAYGROUND_URL'];
 
 if (target !== undefined && target !== '') {
-  const mod: unknown = await import('mercadopago/dist/utils/config').catch(() => undefined);
+  // Resolve from the consuming project, not from wherever this file happens to live.
+  const specifier = ((): string | undefined => {
+    try {
+      return Bun.resolveSync('mercadopago/dist/utils/config', process.cwd());
+    } catch {
+      return undefined;
+    }
+  })();
 
-  if (mod === undefined) {
+  if (specifier === undefined) {
     throw new Error('payground/preload: the `mercadopago` package is not installed');
   }
+
+  const mod: unknown = await import(specifier);
 
   const config = (mod as { AppConfig?: { BASE_URL?: unknown } }).AppConfig;
   if (config === undefined || typeof config.BASE_URL !== 'string') {

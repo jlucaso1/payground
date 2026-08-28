@@ -18,6 +18,9 @@ export function createServer(options: ServerOptions = {}) {
       Response.json({ message: 'not found', error: 'not_found', status: 404 }, { status: 404 }),
   });
 
+  // Hosted checkout and ticket URLs must point at the port we actually bound.
+  if (options.baseUrl === undefined) app.runtime.baseUrl = server.url.origin;
+
   const stop = server.stop.bind(server);
   return Object.assign(server, {
     app,

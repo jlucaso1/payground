@@ -1,0 +1,192 @@
+# Deploying payground
+
+payground is a test double. Everything below assumes that: the data is disposable, the
+credentials it mints are fake, and no real card data or real money ever touches it.
+
+## Self-hosting a single instance
+
+### Docker Compose
+
+```sh
+docker compose up -d
+docker compose logs -f payground
+```
+
+`docker-compose.yml` keeps the SQLite file on a named volume (`/data/payground.sqlite`),
+runs the container as the non-root `bun` user, and health-checks `/_payground/health`.
+Set `PAYGROUND_BASE_URL` to the origin your integrators will actually reach — it is
+embedded in Pix payloads, ticket URLs and checkout links, so a wrong value produces
+QR codes that point at the wrong host.
+
+Recognised environment variables:
+
+| Variable              | Default                      | Meaning                              |
+| --------------------- | ---------------------------- | ------------------------------------ |
+| `PAYGROUND_PORT`      | `8080`                       | Listening port                       |
+| `PAYGROUND_HOST`      | `127.0.0.1` (`0.0.0.0` in the image) | Bind address                 |
+| `PAYGROUND_DB`        | `.payground/payground.sqlite` (`/data/payground.sqlite` in the image) | SQLite file, or `:memory:` |
+| `PAYGROUND_BASE_URL`  | derived from host and port   | Public origin advertised to clients  |
+| `PAYGROUND_DASHBOARD` | `dist/dashboard` next to the CLI | Prebuilt dashboard assets        |
+
+### From the published package
+
+```sh
+bunx payground start --host 0.0.0.0 --db /var/lib/payground/payground.sqlite \
+  --base-url https://payground.example.com
+```
+
+Run it under a supervisor that sends `SIGTERM` (systemd, Kubernetes, Docker). `start`
+handles `SIGINT` and `SIGTERM` by closing the HTTP server and the database, so the WAL is
+checkpointed and the file is left consistent.
+
+### Ephemeral instances for CI
+
+`--db :memory:` keeps everything in RAM and leaves nothing behind:
+
+```sh
+payground start --port 0 --db :memory: &
+```
+
+For a fresh dataset without restarting, `payground reset` drops the data of every sandbox
+and keeps the credentials, so tests that captured a token at boot keep working.
+
+## Public, multi-tenant mode
+
+One instance can serve many teams: a sandbox is a tenant, with its own access token,
+public key, webhook secret and data. `Storage.forSandbox(id)` is the only way to reach a
+repository and it cannot express a cross-sandbox query, so tenant isolation is structural.
+
+A public deployment needs three decisions:
+
+1. **Start bare.** `payground start --no-bootstrap` creates no default sandbox, so nobody
+   inherits a token printed in a log.
+2. **Protect the control API.** Everything under `/_payground/` — including the dashboard
+   and the endpoints that force a transition, read a webhook secret or delete a sandbox —
+   is unauthenticated by design, so that test suites can drive it without credentials.
+   On a public instance it must sit behind authentication in the reverse proxy. The
+   emulated Mercado Pago surface under `/v1/` is unaffected: it authenticates with the
+   sandbox's own credentials.
+3. **Stop webhook deliveries from reaching your network.** See the SSRF section below.
+
+Sandboxes are cheap; give each pull request its own and delete it afterwards:
+
+```sh
+curl -X POST https://payground.example.com/_payground/sandboxes \
+  -H 'Content-Type: application/json' -d '{"name":"pr-1234"}'
+curl -X DELETE https://payground.example.com/_payground/sandboxes/$ID
+```
+
+## Reverse proxy and TLS
+
+Terminate TLS at the proxy and forward to payground over loopback. Bind payground itself
+to `127.0.0.1` so the only way in is through the proxy.
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name payground.example.com;
+
+  ssl_certificate     /etc/letsencrypt/live/payground.example.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/payground.example.com/privkey.pem;
+
+  # The emulated API: authenticated by the sandbox's own access token.
+  location /v1/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+  }
+
+  # Control API and dashboard: unauthenticated upstream, so add authentication here.
+  location /_payground/ {
+    auth_basic           "payground";
+    auth_basic_user_file /etc/nginx/payground.htpasswd;
+    proxy_pass http://127.0.0.1:8080;
+  }
+
+  # Leave the health endpoint open for probes.
+  location = /_payground/health {
+    proxy_pass http://127.0.0.1:8080;
+  }
+}
+```
+
+Then start payground with the public origin, so Pix payloads and ticket URLs match what
+clients can reach:
+
+```sh
+payground start --base-url https://payground.example.com --no-bootstrap
+```
+
+payground itself speaks plain HTTP and has no TLS configuration: give it a proxy.
+
+## Backups
+
+The whole state is one SQLite file (plus its WAL sidecars). Two rules:
+
+- Never copy `payground.sqlite` with `cp` while the process is running — you will capture
+  a torn snapshot. Use SQLite's own backup, which is consistent under concurrent writes:
+
+  ```sh
+  sqlite3 /data/payground.sqlite ".backup '/backup/payground-$(date +%F).sqlite'"
+  ```
+
+  The runtime image has no `sqlite3` binary, so from Docker either stop the service and
+  copy the file, or mount the volume into a throwaway container that has one.
+
+- Restoring is a file copy with the service stopped:
+
+  ```sh
+  docker compose stop payground
+  cp /backup/payground-2026-08-28.sqlite /var/lib/docker/volumes/…/payground.sqlite
+  docker compose start payground
+  ```
+
+Migrations run automatically on open and are recorded in `schema_migrations`, so restoring
+an older file into a newer binary upgrades it in place. The reverse is not supported.
+
+Because the data is disposable by definition, "no backups at all, recreate the sandboxes"
+is a legitimate strategy for CI deployments.
+
+## SSRF: webhook targets
+
+Webhook URLs are supplied by whoever creates a payment, and payground connects to them.
+That is a server-side request forgery surface, and it is guarded in
+`packages/server/src/net/index.ts` by `SafeFetchPolicy`:
+
+- Only `http` and `https`.
+- DNS is resolved first, and **every** returned record must pass the address check, so a
+  rebinding server that answers with one public and one private address is rejected.
+- The connection is made to the validated IP, not to the hostname again, which closes the
+  TOCTOU window between resolution and connection.
+- Loopback, link-local, private, CGNAT, multicast and reserved ranges are blocked
+  (`isBlockedAddress`), in IPv4 and IPv6, including IPv4-mapped forms.
+- Responses are capped (1 MiB by default) and the attempt times out after 22 seconds.
+
+The knobs:
+
+| Knob                             | Default            | Effect                                        |
+| -------------------------------- | ------------------ | --------------------------------------------- |
+| `allowPrivateWebhookTargets` (`createApp`) | `true`    | Self-host escape hatch: delivering to `localhost` is the point |
+| `payground start --block-private-webhooks` | —         | Sets it to `false`: user-supplied URLs can no longer reach internal services |
+| `SafeFetchPolicy.allowlist`      | empty              | Hostnames always permitted even when private   |
+| `SafeFetchPolicy.maxResponseBytes` | 1 MiB            | Cap on the response payground reads back       |
+
+**Run a public instance with `--block-private-webhooks`.** Without it, any user of your
+instance can point `notification_url` at your metadata service or an internal admin panel
+and read the first kilobytes of the response from the delivery log.
+
+If a shared deployment still needs one internal target — a staging receiver, say — the
+allowlist is the narrow tool for it; it is exposed programmatically through `createApp`,
+not on the command line, because an allowlist entry is a deliberate hole.
+
+## Operating notes
+
+- **Health:** `GET /_payground/health` returns `{"status":"ok","version":…,"uptime_ms":…}`.
+  It never touches the database, so it answers even under load; it is a liveness probe,
+  not a readiness probe.
+- **Faults on purpose:** the fault profile (latency, error rate, unavailability, duplicate
+  and failing webhooks) is per sandbox and persisted. A tenant that leaves `unavailable`
+  on will keep getting `503` after a restart; that is deliberate, and clearing it is a
+  `PUT /_payground/sandboxes/{id}/faults` away.
+- **Webhook retries** are attempted by a background runner every second, so a stopped
+  instance simply resumes the queue when it comes back.
+- **Logs** go to stdout, which is where a container runtime wants them.

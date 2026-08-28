@@ -351,13 +351,27 @@ export function createApp(options: AppOptions = {}): App {
 
   return {
     runtime,
-    routes,
+    routes: withTrailingSlashAliases(routes),
     defaultSandbox,
     drainWebhooks,
     stop: () => {
       if (timer !== null) clearInterval(timer);
     },
   };
+}
+
+/**
+ * The official SDK posts to `/checkout/preferences/` with a trailing slash, which the real
+ * API accepts and Bun's router treats as a different path. Alias every pattern.
+ */
+function withTrailingSlashAliases(routes: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...routes };
+  for (const [pattern, handler] of Object.entries(routes)) {
+    if (pattern.endsWith('/') || pattern.includes('*')) continue;
+    const alias = `${pattern}/`;
+    if (out[alias] === undefined) out[alias] = handler;
+  }
+  return out;
 }
 
 async function json(request: Request): Promise<unknown> {

@@ -237,9 +237,13 @@ function normalizePayer(payer: unknown): JsonObject {
   };
 }
 
-/** Both point at this instance: payground *is* the sandbox, so there is no separate host. */
+/**
+ * Both point at this instance: payground *is* the sandbox, so there is no separate host.
+ * The path is payground's own — the real one (`/checkout/v1/redirect?pref_id=`) belongs to
+ * a host we are not, and the page it opens is the one served here.
+ */
 export const initPoint = (baseUrl: string, id: string): string =>
-  `${baseUrl.replace(/\/$/, '')}/checkout/v1/redirect?pref_id=${encodeURIComponent(id)}`;
+  `${baseUrl.replace(/\/$/, '')}/checkout/${encodeURIComponent(id)}`;
 
 interface Meta {
   id: string;

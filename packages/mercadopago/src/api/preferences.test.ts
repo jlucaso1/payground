@@ -34,7 +34,7 @@ describe('createPreference', () => {
   test('returns 201 with the checkout URLs of this instance', () => {
     const { status, doc } = created();
     expect(status).toBe(201);
-    expect(doc['init_point']).toBe(`http://127.0.0.1:8080/checkout/v1/redirect?pref_id=${String(doc['id'])}`);
+    expect(doc['init_point']).toBe(`http://127.0.0.1:8080/checkout/${String(doc['id'])}`);
     expect(doc['sandbox_init_point']).toBe(doc['init_point']);
     expect(String(doc['id'])).toStartWith('123456789-');
   });

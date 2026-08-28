@@ -247,12 +247,17 @@ describe('subscriptions', () => {
     const { context } = harness();
     expect(failure(createSubscription(context, { payer_email: 'nope', auto_recurring: recurring() })).status).toBe(400);
     expect(
-      failure(createSubscription(context, { payer_email: 'a@b.c', auto_recurring: recurring(), status: 'authorized' }))
-        .cause[0]?.description,
+      failure(
+        createSubscription(context, {
+          reason: 'M',
+          payer_email: 'a@b.c',
+          auto_recurring: recurring(),
+          status: 'authorized',
+        }),
+      ).cause[0]?.description,
     ).toContain('card_token_id');
-    expect(failure(createSubscription(context, { payer_email: 'a@b.c' })).cause[0]?.description).toContain(
-      'auto_recurring',
-    );
+    const missing = failure(createSubscription(context, { reason: 'M', payer_email: 'a@b.c' }));
+    expect(missing.cause.map((cause) => cause.description).join()).toContain('auto_recurring');
   });
 
   test('pending becomes authorized when a card token arrives', () => {
@@ -415,9 +420,6 @@ describe('billing', () => {
     // 10 of the 31 days of January, at 29.90 a month.
     expect(first[0]?.['transaction_amount']).toBeCloseTo(9.65, 6);
 
-    expect(body(getSubscription(context, id))['next_payment_date']).toBe(
-      body(getSubscription(context, id))['next_payment_date'],
-    );
     expect(Date.parse(body(getSubscription(context, id))['next_payment_date'] as string)).toBe(
       Date.UTC(2024, 0, 20, 12),
     );

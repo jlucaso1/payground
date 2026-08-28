@@ -16,3 +16,21 @@ jobs:
       - run: bun run typecheck
       - run: bun test packages tools
       - run: bun run test:e2e
+      - run: bun run build
+      # Generated adapter code is committed; upstream drift must fail the build.
+      - run: bun run spec:gen && git diff --exit-code
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t payground:ci .
+      - name: smoke test the image
+        run: |
+          docker run -d --rm --name payground-ci -p 8080:8080 payground:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/_payground/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/_payground/health
+          docker stop payground-ci

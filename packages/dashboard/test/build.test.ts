@@ -1,0 +1,43 @@
+import { afterAll, expect, test } from 'bun:test';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { buildDashboard } from '../src/build.ts';
+
+const outdir = await mkdtemp(join(tmpdir(), 'payground-dashboard-'));
+
+afterAll(async () => {
+  await rm(outdir, { recursive: true, force: true });
+});
+
+test(
+  'buildDashboard emits html, js and tailwind css',
+  async () => {
+    const result = await buildDashboard({ outdir, minify: false });
+
+    const files = await readdir(outdir);
+    const html = files.filter((name) => name.endsWith('.html'));
+    const css = files.filter((name) => name.endsWith('.css'));
+    const js = files.filter((name) => name.endsWith('.js'));
+
+    expect(html.length).toBeGreaterThan(0);
+    expect(css.length).toBe(1);
+    expect(js.length).toBeGreaterThan(0);
+    expect(result.files.length).toBe(files.length);
+
+    const htmlName = html[0];
+    const cssName = css[0];
+    if (htmlName === undefined || cssName === undefined) throw new Error('missing output');
+
+    const htmlText = await Bun.file(join(outdir, htmlName)).text();
+    expect(htmlText).toContain('<div id="root">');
+    expect(htmlText).toContain('.css');
+
+    const cssText = await Bun.file(join(outdir, cssName)).text();
+    expect(cssText).toContain('@layer theme');
+    expect(cssText).toContain('--tw-border-style');
+    expect(cssText).toContain('.max-w-5xl');
+    expect(cssText).toContain('.min-h-screen');
+  },
+  { timeout: 60_000 },
+);

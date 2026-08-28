@@ -13,5 +13,5 @@
     }
   },
   "include": ["packages/**/*.ts", "tools/**/*.ts", "e2e/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "packages/dashboard"]
 }

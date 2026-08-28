@@ -6,10 +6,16 @@
   "dependencies": {},
   "devDependencies": {
     "@types/bun": "^1.4.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "bun-plugin-tailwind": "^0.1.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/dashboard",
     "test": "bun test packages tools",
     "test:e2e": "bun test e2e",
     "spec:sync": "bun tools/spec-sync/src/sync.ts",

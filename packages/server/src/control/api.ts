@@ -78,6 +78,8 @@ export interface ControlDeps {
   storage: Storage;
   now: () => number;
   uuid: () => string;
+  /** Queues the notification a state change would produce on the real API. */
+  notify: (sandbox: Sandbox, action: string, dataId: string, notificationUrl: string | null) => void;
 }
 
 export function listSandboxes(deps: ControlDeps): ControlResult {
@@ -223,6 +225,12 @@ export function actOnPayment(
 
   found.store.payments.update(result.value.payment);
   found.store.payments.record(result.value);
+  deps.notify(
+    found.sandbox,
+    'payment.updated',
+    String(found.store.payments.sequenceOf(payment.id) ?? 0),
+    result.value.payment.notificationUrl,
+  );
 
   return { status: 200, body: { payment: paymentView(result.value.payment, found.store) } };
 }

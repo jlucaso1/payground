@@ -12,7 +12,7 @@ import { Storage } from '@payground/storage';
 import { dashboardHandler } from './dashboard.ts';
 import { health } from './health.ts';
 import * as control from './control/api.ts';
-import { type AppRuntime, endpoint, fromResult } from './http/handler.ts';
+import { type AppRuntime, contextFor, endpoint, fromResult } from './http/handler.ts';
 import { drain } from './webhook/runner.ts';
 import { SystemIdGenerator, systemClock, systemRandom } from './runtime.ts';
 
@@ -78,7 +78,14 @@ export function createApp(options: AppOptions = {}): App {
   const defaultSandbox = options.bootstrap === false ? null : bootstrap(runtime, options.bootstrap ?? {});
   const startedAt = clock.now();
 
-  const deps: control.ControlDeps = { storage, now: () => clock.now(), uuid: () => ids.uuid() };
+  const deps: control.ControlDeps = {
+    storage,
+    now: () => clock.now(),
+    uuid: () => ids.uuid(),
+    notify: (sandbox, action, dataId, notificationUrl) => {
+      contextFor(runtime, sandbox).events.emit({ type: 'payment', action, dataId, notificationUrl });
+    },
+  };
   const send = (result: control.ControlResult) => Response.json(result.body, { status: result.status });
   const path = (request: Request, name: string): string => param(request, name);
 

@@ -5,6 +5,10 @@
   "type": "module",
   "dependencies": {},
   "devDependencies": {
-    "mercadopago": "^3.6.0"
+    "@types/pngjs": "^6.0.5",
+    "jsqr": "^1.4.0",
+    "mercadopago": "^3.6.0",
+    "pix-utils": "^2.8.2",
+    "pngjs": "^7.0.0"
   }
 }

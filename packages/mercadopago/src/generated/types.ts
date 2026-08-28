@@ -541,8 +541,13 @@ export interface Refund {
     name?: string;
     type?: string;
   };
-  refund_mode?: "standard" | "instant";
-  status?: "approved" | "in_process" | "rejected";
+  refund_mode?: string | null;
+  status?: "approved" | "in_process" | "rejected" | "cancelled";
+  reason?: string | null;
+  unique_sequence_number?: string | null;
+  amount_refunded_to_payer?: number | null;
+  adjustment_amount?: number;
+  metadata?: Record<string, unknown>;
 }
 
 /** Request body for creating a refund. Omit amount for a full refund. */

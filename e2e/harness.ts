@@ -1,7 +1,9 @@
+import type { Sandbox } from '@payground/core';
 import { createServer } from '@payground/server';
 
 export interface Harness {
   url: string;
+  sandbox: Sandbox;
   stop(): Promise<void>;
 }
 
@@ -16,8 +18,12 @@ export async function startHarness(): Promise<Harness> {
   };
   AppConfig.BASE_URL = server.url.origin;
 
+  const sandbox = server.app.defaultSandbox;
+  if (sandbox === null) throw new Error('harness expects a bootstrapped sandbox');
+
   return {
     url: server.url.origin,
+    sandbox,
     stop: async () => {
       await server.stop(true);
     },

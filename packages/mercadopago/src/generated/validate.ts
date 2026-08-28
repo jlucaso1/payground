@@ -2327,11 +2327,39 @@ export function checkRefund(value: unknown, path: string, out: Issue[]): void {
     }
     const v9: unknown = value["refund_mode"];
     if (v9 !== undefined) {
-      if (v9 !== "standard" && v9 !== "instant") out.push({ path: path + ".refund_mode", message: 'not one of the allowed values' });
+      if (v9 !== null) {
+        if (typeof v9 !== 'string') out.push({ path: path + ".refund_mode", message: 'expected string' });
+      }
     }
     const v10: unknown = value["status"];
     if (v10 !== undefined) {
-      if (v10 !== "approved" && v10 !== "in_process" && v10 !== "rejected") out.push({ path: path + ".status", message: 'not one of the allowed values' });
+      if (v10 !== "approved" && v10 !== "in_process" && v10 !== "rejected" && v10 !== "cancelled") out.push({ path: path + ".status", message: 'not one of the allowed values' });
+    }
+    const v11: unknown = value["reason"];
+    if (v11 !== undefined) {
+      if (v11 !== null) {
+        if (typeof v11 !== 'string') out.push({ path: path + ".reason", message: 'expected string' });
+      }
+    }
+    const v12: unknown = value["unique_sequence_number"];
+    if (v12 !== undefined) {
+      if (v12 !== null) {
+        if (typeof v12 !== 'string') out.push({ path: path + ".unique_sequence_number", message: 'expected string' });
+      }
+    }
+    const v13: unknown = value["amount_refunded_to_payer"];
+    if (v13 !== undefined) {
+      if (v13 !== null) {
+        if (typeof v13 !== 'number' || !Number.isFinite(v13)) out.push({ path: path + ".amount_refunded_to_payer", message: 'expected number' });
+      }
+    }
+    const v14: unknown = value["adjustment_amount"];
+    if (v14 !== undefined) {
+      if (typeof v14 !== 'number' || !Number.isFinite(v14)) out.push({ path: path + ".adjustment_amount", message: 'expected number' });
+    }
+    const v15: unknown = value["metadata"];
+    if (v15 !== undefined) {
+      if (!isObject(v15)) out.push({ path: path + ".metadata", message: 'expected object' });
     }
   }
 }

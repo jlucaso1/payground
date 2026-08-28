@@ -1,24 +1,22 @@
 import type { Clock } from '@payground/core';
-import { systemClock } from './runtime.ts';
-import { health } from './health.ts';
+import { type AppOptions, createApp } from './app.ts';
 
-export interface ServerOptions {
+export interface ServerOptions extends AppOptions {
   port?: number;
   hostname?: string;
   clock?: Clock;
 }
 
 export function createServer(options: ServerOptions = {}) {
-  const clock = options.clock ?? systemClock;
-  const startedAt = clock.now();
+  const app = createApp(options);
 
-  return Bun.serve({
+  const server = Bun.serve({
     port: options.port ?? 8080,
     hostname: options.hostname ?? '127.0.0.1',
-    routes: {
-      '/_payground/health': () => Response.json(health(clock, startedAt)),
-    },
+    routes: app.routes as never,
     fetch: () =>
       Response.json({ message: 'not found', error: 'not_found', status: 404 }, { status: 404 }),
   });
+
+  return Object.assign(server, { app });
 }

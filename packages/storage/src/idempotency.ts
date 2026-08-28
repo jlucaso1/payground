@@ -36,7 +36,10 @@ export class SqliteIdempotencyStore implements IdempotencyStore {
     this.db
       .query(
         `insert into idempotency (sandbox_id, key, fingerprint, status, body, created_at)
-         values (?, ?, ?, ?, ?, ?)`,
+         values (?, ?, ?, ?, ?, ?)
+         on conflict (sandbox_id, key) do update set
+           fingerprint = excluded.fingerprint, status = excluded.status,
+           body = excluded.body, created_at = excluded.created_at`,
       )
       .run(this.sandbox, record.key, record.fingerprint, record.status, record.body, record.createdAt);
   }

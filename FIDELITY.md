@@ -18,6 +18,14 @@ Added: `live_mode`, `collector_id`, `sponsor_id`, `authorization_code`, `call_fo
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 
+### `Refund`
+
+The spec enumerates only approved, in_process and rejected. The API also reports cancelled refunds, and returns nullable reason and unique_sequence_number.
+
+Added: `status`, `reason`, `unique_sequence_number`, `refund_mode`, `amount_refunded_to_payer`, `adjustment_amount`, `metadata`
+
+Source: https://github.com/mercadopago/sdk-nodejs — clients/paymentRefund/commonTypes.ts
+
 ### `PaymentRequest`
 
 The spec marks only transaction_amount and payer as required, and omits fields the API accepts for Pix and 3DS.

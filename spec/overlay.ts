@@ -120,6 +120,20 @@ export const OVERLAY: readonly OverlayEntry[] = [
     },
   },
   {
+    schema: 'Refund',
+    note: 'The spec enumerates only approved, in_process and rejected. The API also reports cancelled refunds, and returns nullable reason and unique_sequence_number.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — clients/paymentRefund/commonTypes.ts',
+    properties: {
+      status: { type: 'string', enum: ['approved', 'in_process', 'rejected', 'cancelled'] },
+      reason: { type: ['string', 'null'] },
+      unique_sequence_number: { type: ['string', 'null'] },
+      refund_mode: { type: ['string', 'null'] },
+      amount_refunded_to_payer: { type: ['number', 'null'] },
+      adjustment_amount: { type: 'number' },
+      metadata: { type: 'object' },
+    },
+  },
+  {
     schema: 'PaymentRequest',
     note: 'The spec marks only transaction_amount and payer as required, and omits fields the API accepts for Pix and 3DS.',
     source: 'https://www.mercadopago.com.br/developers/en/reference/payments/_payments/post',

@@ -1,0 +1,208 @@
+import { afterEach, describe, expect, test } from 'bun:test';
+import { ManualClock, SeededIdGenerator } from '@payground/core/testing.ts';
+import { Storage } from '@payground/storage';
+import { createServer } from '../server.ts';
+
+let stop: (() => Promise<void>) | null = null;
+afterEach(async () => {
+  await stop?.();
+  stop = null;
+});
+
+function start() {
+  const clock = new ManualClock(1_700_000_000_000);
+  const server = createServer({
+    port: 0,
+    clock,
+    storage: Storage.open(),
+    ids: new SeededIdGenerator(),
+    deliveryIntervalMs: 0,
+    bootstrap: { accessToken: 'TEST-a', publicKey: 'TEST-p', webhookSecret: 's' },
+  });
+  stop = async () => {
+    await server.stop(true);
+  };
+
+  const origin = server.url.origin;
+  const call = async (method: string, path: string, body?: unknown) => {
+    const response = await fetch(`${origin}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: (await response.json()) as any };
+  };
+
+  const api = async (method: string, path: string, body?: unknown) => {
+    const response = await fetch(`${origin}${path}`, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer TEST-a',
+        'x-idempotency-key': crypto.randomUUID(),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: (await response.json()) as any };
+  };
+
+  return { server, clock, call, api, sandbox: server.app.defaultSandbox as NonNullable<typeof server.app.defaultSandbox> };
+}
+
+const pix = {
+  transaction_amount: 100,
+  payment_method_id: 'pix',
+  payer: { email: 'payer@example.com' },
+};
+
+describe('sandboxes', () => {
+  test('lists the bootstrapped sandbox with its credentials', async () => {
+    const app = start();
+    const { status, body } = await app.call('GET', '/_payground/sandboxes');
+    expect(status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({ accessToken: 'TEST-a', publicKey: 'TEST-p', liveMode: false });
+  });
+
+  test('creates, resets and deletes', async () => {
+    const app = start();
+    const created = await app.call('POST', '/_payground/sandboxes', { name: 'second' });
+    expect(created.status).toBe(201);
+    expect(created.body.name).toBe('second');
+    expect((await app.call('GET', '/_payground/sandboxes')).body).toHaveLength(2);
+
+    expect((await app.call('POST', `/_payground/sandboxes/${created.body.id}/reset`)).status).toBe(200);
+    expect((await app.call('DELETE', `/_payground/sandboxes/${created.body.id}`)).status).toBe(200);
+    expect((await app.call('GET', '/_payground/sandboxes')).body).toHaveLength(1);
+  });
+
+  test('an unknown sandbox is a 404', async () => {
+    const app = start();
+    expect((await app.call('POST', '/_payground/sandboxes/ghost/reset')).status).toBe(404);
+    expect((await app.call('GET', '/_payground/sandboxes/ghost/payments')).status).toBe(404);
+  });
+});
+
+describe('payments through the control API', () => {
+  test('lists what the emulated API created', async () => {
+    const app = start();
+    await app.api('POST', '/v1/payments', pix);
+    const { body } = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/payments`);
+
+    expect(body.total).toBe(1);
+    expect(body.results[0]).toMatchObject({
+      state: 'pending',
+      providerStatus: 'pending',
+      providerStatusDetail: 'pending_waiting_transfer',
+      methodCode: 'pix',
+      amount: 10_000,
+    });
+  });
+
+  test('approving a pending Pix moves it to approved on the emulated API too', async () => {
+    const app = start();
+    const created = await app.api('POST', '/v1/payments', pix);
+    const list = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/payments`);
+    const internalId = list.body.results[0].id;
+
+    const acted = await app.call(
+      'POST',
+      `/_payground/sandboxes/${app.sandbox.id}/payments/${internalId}/actions`,
+      { type: 'settle' },
+    );
+    expect(acted.status).toBe(200);
+    expect(acted.body.payment.state).toBe('succeeded');
+
+    const read = await app.api('GET', `/v1/payments/${created.body.id}`);
+    expect(read.body).toMatchObject({ status: 'approved', status_detail: 'accredited' });
+  });
+
+  test('an action the state forbids is a conflict', async () => {
+    const app = start();
+    await app.api('POST', '/v1/payments', pix);
+    const list = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/payments`);
+    const id = list.body.results[0].id;
+
+    expect((await app.call('POST', `/_payground/sandboxes/${app.sandbox.id}/payments/${id}/actions`, { type: 'capture', amount: null })).status).toBe(409);
+    expect((await app.call('POST', `/_payground/sandboxes/${app.sandbox.id}/payments/${id}/actions`, { type: 'nonsense' })).status).toBe(400);
+  });
+
+  test('the detail view carries the timeline and refunds', async () => {
+    const app = start();
+    await app.api('POST', '/v1/payments', pix);
+    const list = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/payments`);
+    const id = list.body.results[0].id;
+
+    await app.call('POST', `/_payground/sandboxes/${app.sandbox.id}/payments/${id}/actions`, { type: 'settle' });
+    const detail = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/payments/${id}`);
+
+    expect(detail.body.timeline).toHaveLength(1);
+    expect(detail.body.timeline[0]).toMatchObject({ from: { state: 'pending' }, to: { state: 'succeeded' } });
+    expect(detail.body.refunds).toEqual([]);
+  });
+});
+
+describe('faults', () => {
+  test('round trips and clamps out-of-range values', async () => {
+    const app = start();
+    expect((await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/faults`)).body).toEqual({
+      latencyMs: 0,
+      errorRate: 0,
+      unavailable: false,
+      duplicateWebhooks: false,
+      webhookFailureRate: 0,
+    });
+
+    const updated = await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}/faults`, {
+      latencyMs: -5,
+      errorRate: 9,
+      unavailable: true,
+      webhookFailureRate: 0.25,
+    });
+    expect(updated.body).toEqual({
+      latencyMs: 0,
+      errorRate: 1,
+      unavailable: true,
+      duplicateWebhooks: false,
+      webhookFailureRate: 0.25,
+    });
+    expect((await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/faults`)).body.errorRate).toBe(1);
+  });
+});
+
+describe('webhooks', () => {
+  test('a payment with a notification url queues a signed delivery that can be replayed', async () => {
+    const app = start();
+    const received: Record<string, string>[] = [];
+    const receiver = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: (request) => {
+        received.push(Object.fromEntries(request.headers.entries()));
+        return new Response('ok');
+      },
+    });
+
+    try {
+      await app.api('POST', '/v1/payments', { ...pix, notification_url: `${receiver.url.origin}/hook` });
+
+      const queued = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/webhooks`);
+      expect(queued.body).toHaveLength(1);
+      expect(queued.body[0]).toMatchObject({ event: 'payment.created', status: 'queued', attempts: 0 });
+      expect(queued.body[0].requestHeaders['x-signature']).toMatch(/^ts=\d+,v1=[0-9a-f]{64}$/);
+
+      const replayed = await app.call(
+        'POST',
+        `/_payground/sandboxes/${app.sandbox.id}/webhooks/${queued.body[0].id}/replay`,
+      );
+      expect(replayed.status).toBe(200);
+      expect(received).toHaveLength(1);
+
+      const after = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}/webhooks`);
+      expect(after.body[0]).toMatchObject({ status: 'delivered', attempts: 1, lastStatusCode: 200 });
+      expect(after.body[0].history).toHaveLength(1);
+    } finally {
+      await receiver.stop(true);
+    }
+  });
+});

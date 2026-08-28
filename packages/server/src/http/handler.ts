@@ -1,6 +1,7 @@
-import type { Clock, IdGenerator, SandboxRegistry } from '@payground/core';
+import type { Clock, IdGenerator, Sandbox, SandboxRegistry } from '@payground/core';
 import type { ServiceContext } from '@payground/mercadopago/api/context.ts';
-import { type EventSink, noopSink } from '@payground/mercadopago/api/context.ts';
+import type { EventSink } from '@payground/mercadopago/api/context.ts';
+import { enqueue } from '../webhook/enqueue.ts';
 import { type ErrorBody, errorResponse, serverError } from '@payground/mercadopago/errors.ts';
 import type { Storage } from '@payground/storage';
 import { type CredentialKind, authenticate } from './auth.ts';
@@ -11,7 +12,8 @@ export interface AppRuntime {
   clock: Clock;
   ids: IdGenerator;
   baseUrl: string;
-  events: EventSink;
+  /** Set for tests that want to observe notices instead of queueing deliveries. */
+  events?: EventSink;
 }
 
 export interface RequestScope {
@@ -37,18 +39,36 @@ const collectorId = (sandboxId: string): number => {
   return COLLECTOR_BASE + Number.parseInt(hash, 16) % 900_000_000;
 };
 
-export function serviceFor(runtime: AppRuntime, registry: SandboxRegistry, sandboxId: string): ServiceContext | null {
-  const sandbox = registry.get(sandboxId as never);
-  if (sandbox === null) return null;
+/** Emitting a notice queues a signed delivery; nothing is sent inline. */
+export function contextFor(runtime: AppRuntime, sandbox: Sandbox): ServiceContext {
+  const store = runtime.storage.forSandbox(sandbox.id);
+  const collector = collectorId(sandbox.id);
+  const events: EventSink = runtime.events ?? {
+    emit: (notice) => {
+      enqueue({
+        store,
+        sandbox,
+        ids: runtime.ids,
+        notice,
+        now: runtime.clock.now(),
+        collectorId: collector,
+      });
+    },
+  };
   return {
-    store: runtime.storage.forSandbox(sandbox.id),
+    store,
     sandbox,
     clock: runtime.clock,
     ids: runtime.ids,
     baseUrl: runtime.baseUrl,
-    collectorId: collectorId(sandbox.id),
-    events: runtime.events ?? noopSink,
+    collectorId: collector,
+    events,
   };
+}
+
+export function serviceFor(runtime: AppRuntime, registry: SandboxRegistry, id: string): ServiceContext | null {
+  const sandbox = registry.get(id as never);
+  return sandbox === null ? null : contextFor(runtime, sandbox);
 }
 
 export function endpoint(runtime: AppRuntime, handler: Endpoint, options: EndpointOptions = {}) {
@@ -75,15 +95,7 @@ export function endpoint(runtime: AppRuntime, handler: Endpoint, options: Endpoi
       }
     }
 
-    const service: ServiceContext = {
-      store: runtime.storage.forSandbox(principal.value.sandbox.id),
-      sandbox: principal.value.sandbox,
-      clock: runtime.clock,
-      ids: runtime.ids,
-      baseUrl: runtime.baseUrl,
-      collectorId: collectorId(principal.value.sandbox.id),
-      events: runtime.events,
-    };
+    const service = contextFor(runtime, principal.value.sandbox);
 
     const key = request.headers.get('x-idempotency-key');
     const print = fingerprint(request.method, url.pathname, rawBody);

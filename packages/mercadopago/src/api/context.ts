@@ -1,7 +1,16 @@
 import type { Clock, IdGenerator, Sandbox, SandboxStore } from '@payground/core';
 
+/** Notification topics the API publishes. */
+export type NotificationTopic =
+  | 'payment'
+  | 'merchant_order'
+  | 'orders'
+  | 'subscription_preapproval'
+  | 'subscription_preapproval_plan'
+  | 'subscription_authorized_payment';
+
 export interface EventNotice {
-  type: 'payment';
+  type: NotificationTopic;
   action: string;
   dataId: string;
   notificationUrl: string | null;

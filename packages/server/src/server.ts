@@ -18,5 +18,12 @@ export function createServer(options: ServerOptions = {}) {
       Response.json({ message: 'not found', error: 'not_found', status: 404 }, { status: 404 }),
   });
 
-  return Object.assign(server, { app });
+  const stop = server.stop.bind(server);
+  return Object.assign(server, {
+    app,
+    stop: async (closeActive?: boolean) => {
+      app.stop();
+      await stop(closeActive);
+    },
+  });
 }

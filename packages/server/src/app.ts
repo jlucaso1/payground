@@ -1,4 +1,4 @@
-import { type Clock, type IdGenerator, type Sandbox, sandboxId } from '@payground/core';
+import { type Clock, type IdGenerator, type RandomSource, type Sandbox, sandboxId } from '@payground/core';
 import {
   createPayment,
   createRefund,
@@ -7,11 +7,13 @@ import {
   searchPayments,
   updatePayment,
 } from '@payground/mercadopago/api/payments.ts';
-import { type EventSink, noopSink } from '@payground/mercadopago/api/context.ts';
+import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { Storage } from '@payground/storage';
 import { health } from './health.ts';
+import * as control from './control/api.ts';
 import { type AppRuntime, endpoint, fromResult } from './http/handler.ts';
-import { SystemIdGenerator, systemClock } from './runtime.ts';
+import { drain } from './webhook/runner.ts';
+import { SystemIdGenerator, systemClock, systemRandom } from './runtime.ts';
 
 export interface BootstrapSandbox {
   name?: string;
@@ -26,6 +28,15 @@ export interface AppOptions {
   ids?: IdGenerator;
   baseUrl?: string;
   events?: EventSink;
+  random?: RandomSource;
+  /** Milliseconds between webhook queue drains. 0 disables the runner (tests drive it). */
+  deliveryIntervalMs?: number;
+  /**
+   * Self-host defaults to allowing webhook targets on private addresses — delivering to
+   * localhost is the point. A public multi-tenant deployment must set this to false so
+   * user-supplied URLs cannot reach internal services.
+   */
+  allowPrivateWebhookTargets?: boolean;
   /** Creates a ready-to-use sandbox on start. Pass false for a bare instance. */
   bootstrap?: BootstrapSandbox | false;
 }
@@ -34,25 +45,78 @@ export interface App {
   runtime: AppRuntime;
   routes: Record<string, unknown>;
   defaultSandbox: Sandbox | null;
+  /** Delivers everything currently due. Exposed so tests never need to wait. */
+  drainWebhooks(): Promise<number>;
+  stop(): void;
 }
 
 export function createApp(options: AppOptions = {}): App {
   const storage = options.storage ?? Storage.open();
   const clock = options.clock ?? systemClock;
   const ids = options.ids ?? new SystemIdGenerator();
+  const random = options.random ?? systemRandom;
   const runtime: AppRuntime = {
     storage,
     clock,
     ids,
     baseUrl: options.baseUrl ?? 'http://127.0.0.1:8080',
-    events: options.events ?? noopSink,
+    ...(options.events === undefined ? {} : { events: options.events }),
   };
+
+  const drainWebhooks = (): Promise<number> =>
+    drain(storage.queue, (delivery) => storage.forSandbox(delivery.sandbox), {
+      store: storage.forSandbox(sandboxId('unused')),
+      clock,
+      random,
+      net: { allowPrivateAddresses: options.allowPrivateWebhookTargets ?? true },
+    });
 
   const defaultSandbox = options.bootstrap === false ? null : bootstrap(runtime, options.bootstrap ?? {});
   const startedAt = clock.now();
 
+  const deps: control.ControlDeps = { storage, now: () => clock.now(), uuid: () => ids.uuid() };
+  const send = (result: control.ControlResult) => Response.json(result.body, { status: result.status });
+  const path = (request: Request, name: string): string => param(request, name);
+
   const routes = {
     '/_payground/health': () => Response.json(health(clock, startedAt)),
+
+    '/_payground/sandboxes': {
+      GET: () => send(control.listSandboxes(deps)),
+      POST: async (request: Request) => send(control.createSandbox(deps, await json(request))),
+    },
+    '/_payground/sandboxes/:id': {
+      DELETE: (request: Request) => send(control.deleteSandbox(deps, path(request, 'id'))),
+    },
+    '/_payground/sandboxes/:id/reset': {
+      POST: (request: Request) => send(control.resetSandbox(deps, path(request, 'id'))),
+    },
+    '/_payground/sandboxes/:id/payments': {
+      GET: (request: Request) =>
+        send(control.listPayments(deps, path(request, 'id'), new URL(request.url).searchParams)),
+    },
+    '/_payground/sandboxes/:id/payments/:pid': {
+      GET: (request: Request) =>
+        send(control.getPaymentDetail(deps, path(request, 'id'), path(request, 'pid'))),
+    },
+    '/_payground/sandboxes/:id/payments/:pid/actions': {
+      POST: async (request: Request) =>
+        send(control.actOnPayment(deps, path(request, 'id'), path(request, 'pid'), await json(request))),
+    },
+    '/_payground/sandboxes/:id/webhooks': {
+      GET: (request: Request) => send(control.listWebhooks(deps, path(request, 'id'))),
+    },
+    '/_payground/sandboxes/:id/webhooks/:wid/replay': {
+      POST: async (request: Request) => {
+        const result = control.replayWebhook(deps, path(request, 'id'), path(request, 'wid'));
+        if (result.status === 200) await drainWebhooks();
+        return send(result);
+      },
+    },
+    '/_payground/sandboxes/:id/faults': {
+      GET: (request: Request) => send(control.getFaults(deps, path(request, 'id'))),
+      PUT: async (request: Request) => send(control.setFaults(deps, path(request, 'id'), await json(request))),
+    },
 
     '/v1/payments': {
       POST: endpoint(runtime, ({ service, body }) => fromResult(createPayment(service, body)), {
@@ -81,7 +145,34 @@ export function createApp(options: AppOptions = {}): App {
     },
   };
 
-  return { runtime, routes, defaultSandbox };
+  const interval = options.deliveryIntervalMs ?? 1_000;
+  const timer =
+    interval > 0
+      ? setInterval(() => {
+          void drainWebhooks();
+        }, interval)
+      : null;
+  if (timer !== null) timer.unref();
+
+  return {
+    runtime,
+    routes,
+    defaultSandbox,
+    drainWebhooks,
+    stop: () => {
+      if (timer !== null) clearInterval(timer);
+    },
+  };
+}
+
+async function json(request: Request): Promise<unknown> {
+  const text = await request.text();
+  if (text === '') return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /** Bun exposes matched path parameters on the request object. */

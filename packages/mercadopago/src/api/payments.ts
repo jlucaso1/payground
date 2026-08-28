@@ -20,6 +20,7 @@ import {
 } from '@payground/core';
 import { type ErrorBody, badRequest, notFound, unprocessable } from '../errors.ts';
 import { validatePaymentRequest } from '../generated/validate.ts';
+import { type BoletoArtifacts, boletoArtifacts } from '../serialize/boleto.ts';
 import { serializePayment } from '../serialize/payment.ts';
 import { type PixArtifacts, pixArtifacts } from '../serialize/pix.ts';
 import { type CardBrand, brandFromBin, codesForBrand, consumeCardToken, isCardBrand } from './card-tokens.ts';
@@ -51,6 +52,16 @@ function artifacts(context: ServiceContext, payment: Payment, sequence: number):
   return made.ok ? made.value : null;
 }
 
+/** Bradesco is the default issuer for the documented `bolbradesco` method. */
+const BOLETO_BANKS: Record<string, string> = { bolbradesco: '237', bolbradesco_pec: '237', pec: '237' };
+
+function boleto(context: ServiceContext, payment: Payment, sequence: number): BoletoArtifacts | null {
+  const bankCode = BOLETO_BANKS[payment.method.code];
+  if (payment.method.kind !== 'voucher' || bankCode === undefined) return null;
+  const made = boletoArtifacts(payment, sequence, { bankCode, baseUrl: context.baseUrl });
+  return made.ok ? made.value : null;
+}
+
 function render(context: ServiceContext, payment: Payment, sequence: number): Rendered['body'] {
   const refunds = context.store.refunds
     .listFor(payment.id)
@@ -62,6 +73,7 @@ function render(context: ServiceContext, payment: Payment, sequence: number): Re
     liveMode: context.sandbox.liveMode,
     refunds,
     pix: artifacts(context, payment, sequence),
+    boleto: boleto(context, payment, sequence),
   });
 }
 

@@ -40,7 +40,7 @@ const transactionData: JsonSchema = {
 export const OVERLAY: readonly OverlayEntry[] = [
   {
     schema: 'Payment',
-    note: 'point_of_interaction is absent from spec3.json; without it there is no Pix QR code on the wire. Shape taken from the Pix guide sample and sdk-nodejs PointOfInteraction.',
+    note: 'point_of_interaction and barcode are absent from spec3.json; without it there is no Pix QR code on the wire. Shape taken from the Pix guide sample and sdk-nodejs PointOfInteraction.',
     source:
       'https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix',
     properties: {
@@ -117,6 +117,27 @@ export const OVERLAY: readonly OverlayEntry[] = [
         },
       },
       refunds: { type: 'array', items: { $ref: '#/components/schemas/Refund' } },
+      transaction_details: {
+        type: 'object',
+        properties: {
+          net_received_amount: { type: 'number' },
+          total_paid_amount: { type: 'number' },
+          overpaid_amount: { type: 'number' },
+          external_resource_url: { type: ['string', 'null'] },
+          installment_amount: { type: 'number' },
+          financial_institution: { type: ['string', 'null'] },
+          payment_method_reference_id: { type: ['string', 'null'] },
+          payable_deferral_period: { type: ['string', 'null'] },
+          acquirer_reference: { type: ['string', 'null'] },
+          transaction_id: { type: ['string', 'null'] },
+          bank_transfer_id: { type: ['integer', 'null'] },
+          digitable_line: { type: 'string' },
+        },
+      },
+      barcode: {
+        type: 'object',
+        properties: { type: { type: ['string', 'null'] }, content: { type: 'string' }, width: { type: 'number' }, height: { type: 'number' } },
+      },
     },
   },
   {

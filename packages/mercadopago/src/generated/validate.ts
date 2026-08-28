@@ -1892,373 +1892,415 @@ export function checkPayment(value: unknown, path: string, out: Issue[]): void {
         }
         const v30: unknown = v26["external_resource_url"];
         if (v30 !== undefined) {
-          if (typeof v30 !== 'string') out.push({ path: path + ".transaction_details" + ".external_resource_url", message: 'expected string' });
+          if (v30 !== null) {
+            if (typeof v30 !== 'string') out.push({ path: path + ".transaction_details" + ".external_resource_url", message: 'expected string' });
+          }
         }
         const v31: unknown = v26["installment_amount"];
         if (v31 !== undefined) {
           if (typeof v31 !== 'number' || !Number.isFinite(v31)) out.push({ path: path + ".transaction_details" + ".installment_amount", message: 'expected number' });
         }
+        const v32: unknown = v26["financial_institution"];
+        if (v32 !== undefined) {
+          if (v32 !== null) {
+            if (typeof v32 !== 'string') out.push({ path: path + ".transaction_details" + ".financial_institution", message: 'expected string' });
+          }
+        }
+        const v33: unknown = v26["payment_method_reference_id"];
+        if (v33 !== undefined) {
+          if (v33 !== null) {
+            if (typeof v33 !== 'string') out.push({ path: path + ".transaction_details" + ".payment_method_reference_id", message: 'expected string' });
+          }
+        }
+        const v34: unknown = v26["payable_deferral_period"];
+        if (v34 !== undefined) {
+          if (v34 !== null) {
+            if (typeof v34 !== 'string') out.push({ path: path + ".transaction_details" + ".payable_deferral_period", message: 'expected string' });
+          }
+        }
+        const v35: unknown = v26["acquirer_reference"];
+        if (v35 !== undefined) {
+          if (v35 !== null) {
+            if (typeof v35 !== 'string') out.push({ path: path + ".transaction_details" + ".acquirer_reference", message: 'expected string' });
+          }
+        }
+        const v36: unknown = v26["transaction_id"];
+        if (v36 !== undefined) {
+          if (v36 !== null) {
+            if (typeof v36 !== 'string') out.push({ path: path + ".transaction_details" + ".transaction_id", message: 'expected string' });
+          }
+        }
+        const v37: unknown = v26["bank_transfer_id"];
+        if (v37 !== undefined) {
+          if (v37 !== null) {
+            if (typeof v37 !== 'number' || !Number.isInteger(v37)) out.push({ path: path + ".transaction_details" + ".bank_transfer_id", message: 'expected integer' });
+          }
+        }
+        const v38: unknown = v26["digitable_line"];
+        if (v38 !== undefined) {
+          if (typeof v38 !== 'string') out.push({ path: path + ".transaction_details" + ".digitable_line", message: 'expected string' });
+        }
       }
     }
-    const v32: unknown = value["captured"];
-    if (v32 !== undefined) {
-      if (typeof v32 !== 'boolean') out.push({ path: path + ".captured", message: 'expected boolean' });
+    const v39: unknown = value["captured"];
+    if (v39 !== undefined) {
+      if (typeof v39 !== 'boolean') out.push({ path: path + ".captured", message: 'expected boolean' });
     }
-    const v33: unknown = value["binary_mode"];
-    if (v33 !== undefined) {
-      if (typeof v33 !== 'boolean') out.push({ path: path + ".binary_mode", message: 'expected boolean' });
+    const v40: unknown = value["binary_mode"];
+    if (v40 !== undefined) {
+      if (typeof v40 !== 'boolean') out.push({ path: path + ".binary_mode", message: 'expected boolean' });
     }
-    const v34: unknown = value["statement_descriptor"];
-    if (v34 !== undefined) {
-      if (typeof v34 !== 'string') out.push({ path: path + ".statement_descriptor", message: 'expected string' });
+    const v41: unknown = value["statement_descriptor"];
+    if (v41 !== undefined) {
+      if (typeof v41 !== 'string') out.push({ path: path + ".statement_descriptor", message: 'expected string' });
     }
-    const v35: unknown = value["installments"];
-    if (v35 !== undefined) {
-      if (typeof v35 !== 'number' || !Number.isInteger(v35)) out.push({ path: path + ".installments", message: 'expected integer' });
+    const v42: unknown = value["installments"];
+    if (v42 !== undefined) {
+      if (typeof v42 !== 'number' || !Number.isInteger(v42)) out.push({ path: path + ".installments", message: 'expected integer' });
     }
-    const v36: unknown = value["card"];
-    if (v36 !== undefined) {
-      if (!isObject(v36)) {
+    const v43: unknown = value["card"];
+    if (v43 !== undefined) {
+      if (!isObject(v43)) {
         out.push({ path: path + ".card", message: 'expected object' });
       } else {
-        const v37: unknown = v36["last_four_digits"];
-        if (v37 !== undefined) {
-          if (typeof v37 !== 'string') out.push({ path: path + ".card" + ".last_four_digits", message: 'expected string' });
+        const v44: unknown = v43["last_four_digits"];
+        if (v44 !== undefined) {
+          if (typeof v44 !== 'string') out.push({ path: path + ".card" + ".last_four_digits", message: 'expected string' });
         }
-        const v38: unknown = v36["first_six_digits"];
-        if (v38 !== undefined) {
-          if (typeof v38 !== 'string') out.push({ path: path + ".card" + ".first_six_digits", message: 'expected string' });
+        const v45: unknown = v43["first_six_digits"];
+        if (v45 !== undefined) {
+          if (typeof v45 !== 'string') out.push({ path: path + ".card" + ".first_six_digits", message: 'expected string' });
         }
-        const v39: unknown = v36["expiration_year"];
-        if (v39 !== undefined) {
-          if (typeof v39 !== 'number' || !Number.isInteger(v39)) out.push({ path: path + ".card" + ".expiration_year", message: 'expected integer' });
+        const v46: unknown = v43["expiration_year"];
+        if (v46 !== undefined) {
+          if (typeof v46 !== 'number' || !Number.isInteger(v46)) out.push({ path: path + ".card" + ".expiration_year", message: 'expected integer' });
         }
-        const v40: unknown = v36["expiration_month"];
-        if (v40 !== undefined) {
-          if (typeof v40 !== 'number' || !Number.isInteger(v40)) out.push({ path: path + ".card" + ".expiration_month", message: 'expected integer' });
+        const v47: unknown = v43["expiration_month"];
+        if (v47 !== undefined) {
+          if (typeof v47 !== 'number' || !Number.isInteger(v47)) out.push({ path: path + ".card" + ".expiration_month", message: 'expected integer' });
         }
-        const v41: unknown = v36["date_created"];
-        if (v41 !== undefined) {
-          if (typeof v41 !== 'string') out.push({ path: path + ".card" + ".date_created", message: 'expected string' });
+        const v48: unknown = v43["date_created"];
+        if (v48 !== undefined) {
+          if (typeof v48 !== 'string') out.push({ path: path + ".card" + ".date_created", message: 'expected string' });
         }
-        const v42: unknown = v36["date_last_updated"];
-        if (v42 !== undefined) {
-          if (typeof v42 !== 'string') out.push({ path: path + ".card" + ".date_last_updated", message: 'expected string' });
+        const v49: unknown = v43["date_last_updated"];
+        if (v49 !== undefined) {
+          if (typeof v49 !== 'string') out.push({ path: path + ".card" + ".date_last_updated", message: 'expected string' });
         }
-        const v43: unknown = v36["cardholder"];
-        if (v43 !== undefined) {
-          if (!isObject(v43)) {
+        const v50: unknown = v43["cardholder"];
+        if (v50 !== undefined) {
+          if (!isObject(v50)) {
             out.push({ path: path + ".card" + ".cardholder", message: 'expected object' });
           } else {
-            const v44: unknown = v43["name"];
-            if (v44 !== undefined) {
-              if (typeof v44 !== 'string') out.push({ path: path + ".card" + ".cardholder" + ".name", message: 'expected string' });
+            const v51: unknown = v50["name"];
+            if (v51 !== undefined) {
+              if (typeof v51 !== 'string') out.push({ path: path + ".card" + ".cardholder" + ".name", message: 'expected string' });
             }
-            const v45: unknown = v43["identification"];
-            if (v45 !== undefined) {
-              checkIdentification(v45, path + ".card" + ".cardholder" + ".identification", out);
+            const v52: unknown = v50["identification"];
+            if (v52 !== undefined) {
+              checkIdentification(v52, path + ".card" + ".cardholder" + ".identification", out);
             }
           }
         }
       }
     }
-    const v46: unknown = value["notification_url"];
-    if (v46 !== undefined) {
-      if (typeof v46 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
-    }
-    const v47: unknown = value["processing_mode"];
-    if (v47 !== undefined) {
-      if (v47 !== "aggregator" && v47 !== "gateway") out.push({ path: path + ".processing_mode", message: 'not one of the allowed values' });
-    }
-    const v48: unknown = value["live_mode"];
-    if (v48 !== undefined) {
-      if (typeof v48 !== 'boolean') out.push({ path: path + ".live_mode", message: 'expected boolean' });
-    }
-    const v49: unknown = value["collector_id"];
-    if (v49 !== undefined) {
-      if (typeof v49 !== 'number' || !Number.isInteger(v49)) out.push({ path: path + ".collector_id", message: 'expected integer' });
-    }
-    const v50: unknown = value["sponsor_id"];
-    if (v50 !== undefined) {
-      if (v50 !== null) {
-        if (typeof v50 !== 'number' || !Number.isInteger(v50)) out.push({ path: path + ".sponsor_id", message: 'expected integer' });
-      }
-    }
-    const v51: unknown = value["authorization_code"];
-    if (v51 !== undefined) {
-      if (v51 !== null) {
-        if (typeof v51 !== 'string') out.push({ path: path + ".authorization_code", message: 'expected string' });
-      }
-    }
-    const v52: unknown = value["call_for_authorize_id"];
-    if (v52 !== undefined) {
-      if (v52 !== null) {
-        if (typeof v52 !== 'string') out.push({ path: path + ".call_for_authorize_id", message: 'expected string' });
-      }
-    }
-    const v53: unknown = value["money_release_status"];
+    const v53: unknown = value["notification_url"];
     if (v53 !== undefined) {
-      if (v53 !== null) {
-        if (typeof v53 !== 'string') out.push({ path: path + ".money_release_status", message: 'expected string' });
-      }
+      if (typeof v53 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
     }
-    const v54: unknown = value["net_amount"];
+    const v54: unknown = value["processing_mode"];
     if (v54 !== undefined) {
-      if (typeof v54 !== 'number' || !Number.isFinite(v54)) out.push({ path: path + ".net_amount", message: 'expected number' });
+      if (v54 !== "aggregator" && v54 !== "gateway") out.push({ path: path + ".processing_mode", message: 'not one of the allowed values' });
     }
-    const v55: unknown = value["taxes_amount"];
+    const v55: unknown = value["live_mode"];
     if (v55 !== undefined) {
-      if (typeof v55 !== 'number' || !Number.isFinite(v55)) out.push({ path: path + ".taxes_amount", message: 'expected number' });
+      if (typeof v55 !== 'boolean') out.push({ path: path + ".live_mode", message: 'expected boolean' });
     }
-    const v56: unknown = value["shipping_amount"];
+    const v56: unknown = value["collector_id"];
     if (v56 !== undefined) {
-      if (typeof v56 !== 'number' || !Number.isFinite(v56)) out.push({ path: path + ".shipping_amount", message: 'expected number' });
+      if (typeof v56 !== 'number' || !Number.isInteger(v56)) out.push({ path: path + ".collector_id", message: 'expected integer' });
     }
-    const v57: unknown = value["counter_currency"];
+    const v57: unknown = value["sponsor_id"];
     if (v57 !== undefined) {
       if (v57 !== null) {
-        if (typeof v57 !== 'string') out.push({ path: path + ".counter_currency", message: 'expected string' });
+        if (typeof v57 !== 'number' || !Number.isInteger(v57)) out.push({ path: path + ".sponsor_id", message: 'expected integer' });
       }
     }
-    const v58: unknown = value["differential_pricing_id"];
+    const v58: unknown = value["authorization_code"];
     if (v58 !== undefined) {
       if (v58 !== null) {
-        if (typeof v58 !== 'number' || !Number.isInteger(v58)) out.push({ path: path + ".differential_pricing_id", message: 'expected integer' });
+        if (typeof v58 !== 'string') out.push({ path: path + ".authorization_code", message: 'expected string' });
       }
     }
-    const v59: unknown = value["deduction_schema"];
+    const v59: unknown = value["call_for_authorize_id"];
     if (v59 !== undefined) {
       if (v59 !== null) {
-        if (typeof v59 !== 'string') out.push({ path: path + ".deduction_schema", message: 'expected string' });
+        if (typeof v59 !== 'string') out.push({ path: path + ".call_for_authorize_id", message: 'expected string' });
       }
     }
-    const v60: unknown = value["pos_id"];
+    const v60: unknown = value["money_release_status"];
     if (v60 !== undefined) {
       if (v60 !== null) {
-        if (typeof v60 !== 'string') out.push({ path: path + ".pos_id", message: 'expected string' });
+        if (typeof v60 !== 'string') out.push({ path: path + ".money_release_status", message: 'expected string' });
       }
     }
-    const v61: unknown = value["store_id"];
+    const v61: unknown = value["net_amount"];
     if (v61 !== undefined) {
-      if (v61 !== null) {
-        if (typeof v61 !== 'string') out.push({ path: path + ".store_id", message: 'expected string' });
-      }
+      if (typeof v61 !== 'number' || !Number.isFinite(v61)) out.push({ path: path + ".net_amount", message: 'expected number' });
     }
-    const v62: unknown = value["integrator_id"];
+    const v62: unknown = value["taxes_amount"];
     if (v62 !== undefined) {
-      if (v62 !== null) {
-        if (typeof v62 !== 'string') out.push({ path: path + ".integrator_id", message: 'expected string' });
-      }
+      if (typeof v62 !== 'number' || !Number.isFinite(v62)) out.push({ path: path + ".taxes_amount", message: 'expected number' });
     }
-    const v63: unknown = value["platform_id"];
+    const v63: unknown = value["shipping_amount"];
     if (v63 !== undefined) {
-      if (v63 !== null) {
-        if (typeof v63 !== 'string') out.push({ path: path + ".platform_id", message: 'expected string' });
-      }
+      if (typeof v63 !== 'number' || !Number.isFinite(v63)) out.push({ path: path + ".shipping_amount", message: 'expected number' });
     }
-    const v64: unknown = value["corporation_id"];
+    const v64: unknown = value["counter_currency"];
     if (v64 !== undefined) {
       if (v64 !== null) {
-        if (typeof v64 !== 'string') out.push({ path: path + ".corporation_id", message: 'expected string' });
+        if (typeof v64 !== 'string') out.push({ path: path + ".counter_currency", message: 'expected string' });
       }
     }
-    const v65: unknown = value["merchant_account_id"];
+    const v65: unknown = value["differential_pricing_id"];
     if (v65 !== undefined) {
       if (v65 !== null) {
-        if (typeof v65 !== 'string') out.push({ path: path + ".merchant_account_id", message: 'expected string' });
+        if (typeof v65 !== 'number' || !Number.isInteger(v65)) out.push({ path: path + ".differential_pricing_id", message: 'expected integer' });
       }
     }
-    const v66: unknown = value["merchant_number"];
+    const v66: unknown = value["deduction_schema"];
     if (v66 !== undefined) {
       if (v66 !== null) {
-        if (typeof v66 !== 'string') out.push({ path: path + ".merchant_number", message: 'expected string' });
+        if (typeof v66 !== 'string') out.push({ path: path + ".deduction_schema", message: 'expected string' });
       }
     }
-    const v67: unknown = value["callback_url"];
+    const v67: unknown = value["pos_id"];
     if (v67 !== undefined) {
       if (v67 !== null) {
-        if (typeof v67 !== 'string') out.push({ path: path + ".callback_url", message: 'expected string' });
+        if (typeof v67 !== 'string') out.push({ path: path + ".pos_id", message: 'expected string' });
       }
     }
-    const v68: unknown = value["payment_method_option_id"];
+    const v68: unknown = value["store_id"];
     if (v68 !== undefined) {
       if (v68 !== null) {
-        if (typeof v68 !== 'string') out.push({ path: path + ".payment_method_option_id", message: 'expected string' });
+        if (typeof v68 !== 'string') out.push({ path: path + ".store_id", message: 'expected string' });
       }
     }
-    const v69: unknown = value["order"];
+    const v69: unknown = value["integrator_id"];
     if (v69 !== undefined) {
-      if (!isObject(v69)) {
-        out.push({ path: path + ".order", message: 'expected object' });
-      } else {
-        const v70: unknown = v69["id"];
-        if (v70 !== undefined) {
-          if (typeof v70 !== 'string') out.push({ path: path + ".order" + ".id", message: 'expected string' });
-        }
-        const v71: unknown = v69["type"];
-        if (v71 !== undefined) {
-          if (typeof v71 !== 'string') out.push({ path: path + ".order" + ".type", message: 'expected string' });
-        }
+      if (v69 !== null) {
+        if (typeof v69 !== 'string') out.push({ path: path + ".integrator_id", message: 'expected string' });
       }
     }
-    const v72: unknown = value["payment_method"];
+    const v70: unknown = value["platform_id"];
+    if (v70 !== undefined) {
+      if (v70 !== null) {
+        if (typeof v70 !== 'string') out.push({ path: path + ".platform_id", message: 'expected string' });
+      }
+    }
+    const v71: unknown = value["corporation_id"];
+    if (v71 !== undefined) {
+      if (v71 !== null) {
+        if (typeof v71 !== 'string') out.push({ path: path + ".corporation_id", message: 'expected string' });
+      }
+    }
+    const v72: unknown = value["merchant_account_id"];
     if (v72 !== undefined) {
-      if (!isObject(v72)) {
-        out.push({ path: path + ".payment_method", message: 'expected object' });
-      } else {
-        const v73: unknown = v72["id"];
-        if (v73 !== undefined) {
-          if (typeof v73 !== 'string') out.push({ path: path + ".payment_method" + ".id", message: 'expected string' });
-        }
-        const v74: unknown = v72["type"];
-        if (v74 !== undefined) {
-          if (typeof v74 !== 'string') out.push({ path: path + ".payment_method" + ".type", message: 'expected string' });
-        }
-        const v75: unknown = v72["issuer_id"];
-        if (v75 !== undefined) {
-          if (v75 !== null) {
-            if (typeof v75 !== 'string') out.push({ path: path + ".payment_method" + ".issuer_id", message: 'expected string' });
-          }
-        }
+      if (v72 !== null) {
+        if (typeof v72 !== 'string') out.push({ path: path + ".merchant_account_id", message: 'expected string' });
       }
     }
-    const v76: unknown = value["point_of_interaction"];
+    const v73: unknown = value["merchant_number"];
+    if (v73 !== undefined) {
+      if (v73 !== null) {
+        if (typeof v73 !== 'string') out.push({ path: path + ".merchant_number", message: 'expected string' });
+      }
+    }
+    const v74: unknown = value["callback_url"];
+    if (v74 !== undefined) {
+      if (v74 !== null) {
+        if (typeof v74 !== 'string') out.push({ path: path + ".callback_url", message: 'expected string' });
+      }
+    }
+    const v75: unknown = value["payment_method_option_id"];
+    if (v75 !== undefined) {
+      if (v75 !== null) {
+        if (typeof v75 !== 'string') out.push({ path: path + ".payment_method_option_id", message: 'expected string' });
+      }
+    }
+    const v76: unknown = value["order"];
     if (v76 !== undefined) {
       if (!isObject(v76)) {
+        out.push({ path: path + ".order", message: 'expected object' });
+      } else {
+        const v77: unknown = v76["id"];
+        if (v77 !== undefined) {
+          if (typeof v77 !== 'string') out.push({ path: path + ".order" + ".id", message: 'expected string' });
+        }
+        const v78: unknown = v76["type"];
+        if (v78 !== undefined) {
+          if (typeof v78 !== 'string') out.push({ path: path + ".order" + ".type", message: 'expected string' });
+        }
+      }
+    }
+    const v79: unknown = value["payment_method"];
+    if (v79 !== undefined) {
+      if (!isObject(v79)) {
+        out.push({ path: path + ".payment_method", message: 'expected object' });
+      } else {
+        const v80: unknown = v79["id"];
+        if (v80 !== undefined) {
+          if (typeof v80 !== 'string') out.push({ path: path + ".payment_method" + ".id", message: 'expected string' });
+        }
+        const v81: unknown = v79["type"];
+        if (v81 !== undefined) {
+          if (typeof v81 !== 'string') out.push({ path: path + ".payment_method" + ".type", message: 'expected string' });
+        }
+        const v82: unknown = v79["issuer_id"];
+        if (v82 !== undefined) {
+          if (v82 !== null) {
+            if (typeof v82 !== 'string') out.push({ path: path + ".payment_method" + ".issuer_id", message: 'expected string' });
+          }
+        }
+      }
+    }
+    const v83: unknown = value["point_of_interaction"];
+    if (v83 !== undefined) {
+      if (!isObject(v83)) {
         out.push({ path: path + ".point_of_interaction", message: 'expected object' });
       } else {
-        const v77: unknown = v76["type"];
-        if (v77 !== undefined) {
-          if (typeof v77 !== 'string') out.push({ path: path + ".point_of_interaction" + ".type", message: 'expected string' });
+        const v84: unknown = v83["type"];
+        if (v84 !== undefined) {
+          if (typeof v84 !== 'string') out.push({ path: path + ".point_of_interaction" + ".type", message: 'expected string' });
         }
-        const v78: unknown = v76["sub_type"];
-        if (v78 !== undefined) {
-          if (v78 !== null) {
-            if (typeof v78 !== 'string') out.push({ path: path + ".point_of_interaction" + ".sub_type", message: 'expected string' });
+        const v85: unknown = v83["sub_type"];
+        if (v85 !== undefined) {
+          if (v85 !== null) {
+            if (typeof v85 !== 'string') out.push({ path: path + ".point_of_interaction" + ".sub_type", message: 'expected string' });
           }
         }
-        const v79: unknown = v76["application_data"];
-        if (v79 !== undefined) {
-          if (!isObject(v79)) {
+        const v86: unknown = v83["application_data"];
+        if (v86 !== undefined) {
+          if (!isObject(v86)) {
             out.push({ path: path + ".point_of_interaction" + ".application_data", message: 'expected object' });
           } else {
-            const v80: unknown = v79["name"];
-            if (v80 !== undefined) {
-              if (v80 !== null) {
-                if (typeof v80 !== 'string') out.push({ path: path + ".point_of_interaction" + ".application_data" + ".name", message: 'expected string' });
-              }
-            }
-            const v81: unknown = v79["version"];
-            if (v81 !== undefined) {
-              if (v81 !== null) {
-                if (typeof v81 !== 'string') out.push({ path: path + ".point_of_interaction" + ".application_data" + ".version", message: 'expected string' });
-              }
-            }
-          }
-        }
-        const v82: unknown = v76["transaction_data"];
-        if (v82 !== undefined) {
-          if (!isObject(v82)) {
-            out.push({ path: path + ".point_of_interaction" + ".transaction_data", message: 'expected object' });
-          } else {
-            const v83: unknown = v82["qr_code"];
-            if (v83 !== undefined) {
-              if (typeof v83 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".qr_code", message: 'expected string' });
-            }
-            const v84: unknown = v82["qr_code_base64"];
-            if (v84 !== undefined) {
-              if (typeof v84 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".qr_code_base64", message: 'expected string' });
-            }
-            const v85: unknown = v82["ticket_url"];
-            if (v85 !== undefined) {
-              if (typeof v85 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".ticket_url", message: 'expected string' });
-            }
-            const v86: unknown = v82["transaction_id"];
-            if (v86 !== undefined) {
-              if (v86 !== null) {
-                if (typeof v86 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".transaction_id", message: 'expected string' });
-              }
-            }
-            const v87: unknown = v82["bank_transfer_id"];
+            const v87: unknown = v86["name"];
             if (v87 !== undefined) {
               if (v87 !== null) {
-                if (typeof v87 !== 'number' || !Number.isInteger(v87)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".bank_transfer_id", message: 'expected integer' });
+                if (typeof v87 !== 'string') out.push({ path: path + ".point_of_interaction" + ".application_data" + ".name", message: 'expected string' });
               }
             }
-            const v88: unknown = v82["financial_institution"];
+            const v88: unknown = v86["version"];
             if (v88 !== undefined) {
               if (v88 !== null) {
-                if (typeof v88 !== 'number' || !Number.isInteger(v88)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".financial_institution", message: 'expected integer' });
+                if (typeof v88 !== 'string') out.push({ path: path + ".point_of_interaction" + ".application_data" + ".version", message: 'expected string' });
               }
             }
-            const v89: unknown = v82["bank_info"];
-            if (v89 !== undefined) {
-              if (!isObject(v89)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".bank_info", message: 'expected object' });
+          }
+        }
+        const v89: unknown = v83["transaction_data"];
+        if (v89 !== undefined) {
+          if (!isObject(v89)) {
+            out.push({ path: path + ".point_of_interaction" + ".transaction_data", message: 'expected object' });
+          } else {
+            const v90: unknown = v89["qr_code"];
+            if (v90 !== undefined) {
+              if (typeof v90 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".qr_code", message: 'expected string' });
+            }
+            const v91: unknown = v89["qr_code_base64"];
+            if (v91 !== undefined) {
+              if (typeof v91 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".qr_code_base64", message: 'expected string' });
+            }
+            const v92: unknown = v89["ticket_url"];
+            if (v92 !== undefined) {
+              if (typeof v92 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".ticket_url", message: 'expected string' });
+            }
+            const v93: unknown = v89["transaction_id"];
+            if (v93 !== undefined) {
+              if (v93 !== null) {
+                if (typeof v93 !== 'string') out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".transaction_id", message: 'expected string' });
+              }
+            }
+            const v94: unknown = v89["bank_transfer_id"];
+            if (v94 !== undefined) {
+              if (v94 !== null) {
+                if (typeof v94 !== 'number' || !Number.isInteger(v94)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".bank_transfer_id", message: 'expected integer' });
+              }
+            }
+            const v95: unknown = v89["financial_institution"];
+            if (v95 !== undefined) {
+              if (v95 !== null) {
+                if (typeof v95 !== 'number' || !Number.isInteger(v95)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".financial_institution", message: 'expected integer' });
+              }
+            }
+            const v96: unknown = v89["bank_info"];
+            if (v96 !== undefined) {
+              if (!isObject(v96)) out.push({ path: path + ".point_of_interaction" + ".transaction_data" + ".bank_info", message: 'expected object' });
             }
           }
         }
       }
     }
-    const v90: unknown = value["fee_details"];
-    if (v90 !== undefined) {
-      if (!Array.isArray(v90)) {
+    const v97: unknown = value["fee_details"];
+    if (v97 !== undefined) {
+      if (!Array.isArray(v97)) {
         out.push({ path: path + ".fee_details", message: 'expected array' });
       } else {
-        for (let v91 = 0; v91 < v90.length; v91++) {
-          const v92: unknown = v90[v91];
-          if (!isObject(v92)) {
-            out.push({ path: path + ".fee_details" + '[' + v91 + ']', message: 'expected object' });
+        for (let v98 = 0; v98 < v97.length; v98++) {
+          const v99: unknown = v97[v98];
+          if (!isObject(v99)) {
+            out.push({ path: path + ".fee_details" + '[' + v98 + ']', message: 'expected object' });
           } else {
-            const v93: unknown = v92["type"];
-            if (v93 !== undefined) {
-              if (typeof v93 !== 'string') out.push({ path: path + ".fee_details" + '[' + v91 + ']' + ".type", message: 'expected string' });
+            const v100: unknown = v99["type"];
+            if (v100 !== undefined) {
+              if (typeof v100 !== 'string') out.push({ path: path + ".fee_details" + '[' + v98 + ']' + ".type", message: 'expected string' });
             }
-            const v94: unknown = v92["amount"];
-            if (v94 !== undefined) {
-              if (typeof v94 !== 'number' || !Number.isFinite(v94)) out.push({ path: path + ".fee_details" + '[' + v91 + ']' + ".amount", message: 'expected number' });
+            const v101: unknown = v99["amount"];
+            if (v101 !== undefined) {
+              if (typeof v101 !== 'number' || !Number.isFinite(v101)) out.push({ path: path + ".fee_details" + '[' + v98 + ']' + ".amount", message: 'expected number' });
             }
-            const v95: unknown = v92["fee_payer"];
-            if (v95 !== undefined) {
-              if (typeof v95 !== 'string') out.push({ path: path + ".fee_details" + '[' + v91 + ']' + ".fee_payer", message: 'expected string' });
+            const v102: unknown = v99["fee_payer"];
+            if (v102 !== undefined) {
+              if (typeof v102 !== 'string') out.push({ path: path + ".fee_details" + '[' + v98 + ']' + ".fee_payer", message: 'expected string' });
             }
           }
         }
       }
     }
-    const v96: unknown = value["charges_details"];
-    if (v96 !== undefined) {
-      if (!Array.isArray(v96)) {
+    const v103: unknown = value["charges_details"];
+    if (v103 !== undefined) {
+      if (!Array.isArray(v103)) {
         out.push({ path: path + ".charges_details", message: 'expected array' });
       } else {
-        for (let v97 = 0; v97 < v96.length; v97++) {
-          const v98: unknown = v96[v97];
-          if (!isObject(v98)) {
-            out.push({ path: path + ".charges_details" + '[' + v97 + ']', message: 'expected object' });
+        for (let v104 = 0; v104 < v103.length; v104++) {
+          const v105: unknown = v103[v104];
+          if (!isObject(v105)) {
+            out.push({ path: path + ".charges_details" + '[' + v104 + ']', message: 'expected object' });
           } else {
-            const v99: unknown = v98["id"];
-            if (v99 !== undefined) {
-              if (typeof v99 !== 'string') out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".id", message: 'expected string' });
+            const v106: unknown = v105["id"];
+            if (v106 !== undefined) {
+              if (typeof v106 !== 'string') out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".id", message: 'expected string' });
             }
-            const v100: unknown = v98["name"];
-            if (v100 !== undefined) {
-              if (typeof v100 !== 'string') out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".name", message: 'expected string' });
+            const v107: unknown = v105["name"];
+            if (v107 !== undefined) {
+              if (typeof v107 !== 'string') out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".name", message: 'expected string' });
             }
-            const v101: unknown = v98["type"];
-            if (v101 !== undefined) {
-              if (typeof v101 !== 'string') out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".type", message: 'expected string' });
+            const v108: unknown = v105["type"];
+            if (v108 !== undefined) {
+              if (typeof v108 !== 'string') out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".type", message: 'expected string' });
             }
-            const v102: unknown = v98["amounts"];
-            if (v102 !== undefined) {
-              if (!isObject(v102)) {
-                out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".amounts", message: 'expected object' });
+            const v109: unknown = v105["amounts"];
+            if (v109 !== undefined) {
+              if (!isObject(v109)) {
+                out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".amounts", message: 'expected object' });
               } else {
-                const v103: unknown = v102["original"];
-                if (v103 !== undefined) {
-                  if (typeof v103 !== 'number' || !Number.isFinite(v103)) out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".amounts" + ".original", message: 'expected number' });
+                const v110: unknown = v109["original"];
+                if (v110 !== undefined) {
+                  if (typeof v110 !== 'number' || !Number.isFinite(v110)) out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".amounts" + ".original", message: 'expected number' });
                 }
-                const v104: unknown = v102["refunded"];
-                if (v104 !== undefined) {
-                  if (typeof v104 !== 'number' || !Number.isFinite(v104)) out.push({ path: path + ".charges_details" + '[' + v97 + ']' + ".amounts" + ".refunded", message: 'expected number' });
+                const v111: unknown = v109["refunded"];
+                if (v111 !== undefined) {
+                  if (typeof v111 !== 'number' || !Number.isFinite(v111)) out.push({ path: path + ".charges_details" + '[' + v104 + ']' + ".amounts" + ".refunded", message: 'expected number' });
                 }
               }
             }
@@ -2266,14 +2308,39 @@ export function checkPayment(value: unknown, path: string, out: Issue[]): void {
         }
       }
     }
-    const v105: unknown = value["refunds"];
-    if (v105 !== undefined) {
-      if (!Array.isArray(v105)) {
+    const v112: unknown = value["refunds"];
+    if (v112 !== undefined) {
+      if (!Array.isArray(v112)) {
         out.push({ path: path + ".refunds", message: 'expected array' });
       } else {
-        for (let v106 = 0; v106 < v105.length; v106++) {
-          const v107: unknown = v105[v106];
-          checkRefund(v107, path + ".refunds" + '[' + v106 + ']', out);
+        for (let v113 = 0; v113 < v112.length; v113++) {
+          const v114: unknown = v112[v113];
+          checkRefund(v114, path + ".refunds" + '[' + v113 + ']', out);
+        }
+      }
+    }
+    const v115: unknown = value["barcode"];
+    if (v115 !== undefined) {
+      if (!isObject(v115)) {
+        out.push({ path: path + ".barcode", message: 'expected object' });
+      } else {
+        const v116: unknown = v115["type"];
+        if (v116 !== undefined) {
+          if (v116 !== null) {
+            if (typeof v116 !== 'string') out.push({ path: path + ".barcode" + ".type", message: 'expected string' });
+          }
+        }
+        const v117: unknown = v115["content"];
+        if (v117 !== undefined) {
+          if (typeof v117 !== 'string') out.push({ path: path + ".barcode" + ".content", message: 'expected string' });
+        }
+        const v118: unknown = v115["width"];
+        if (v118 !== undefined) {
+          if (typeof v118 !== 'number' || !Number.isFinite(v118)) out.push({ path: path + ".barcode" + ".width", message: 'expected number' });
+        }
+        const v119: unknown = v115["height"];
+        if (v119 !== undefined) {
+          if (typeof v119 !== 'number' || !Number.isFinite(v119)) out.push({ path: path + ".barcode" + ".height", message: 'expected number' });
         }
       }
     }

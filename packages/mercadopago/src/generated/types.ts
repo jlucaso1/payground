@@ -445,8 +445,15 @@ export interface Payment {
     net_received_amount?: number;
     total_paid_amount?: number;
     overpaid_amount?: number;
-    external_resource_url?: string;
+    external_resource_url?: string | null;
     installment_amount?: number;
+    financial_institution?: string | null;
+    payment_method_reference_id?: string | null;
+    payable_deferral_period?: string | null;
+    acquirer_reference?: string | null;
+    transaction_id?: string | null;
+    bank_transfer_id?: number | null;
+    digitable_line?: string;
   };
   captured?: boolean;
   binary_mode?: boolean;
@@ -528,6 +535,12 @@ export interface Payment {
     };
   })[];
   refunds?: Refund[];
+  barcode?: {
+    type?: string | null;
+    content?: string;
+    width?: number;
+    height?: number;
+  };
 }
 
 /** A payment refund (partial or full) */

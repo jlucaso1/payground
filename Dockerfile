@@ -5,7 +5,7 @@ FROM oven/bun:1.4 AS build
 WORKDIR /app
 
 # Workspace manifests first, so the dependency layer is cached across source edits.
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
 COPY packages/dashboard/package.json ./packages/dashboard/

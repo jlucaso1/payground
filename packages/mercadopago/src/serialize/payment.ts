@@ -3,6 +3,7 @@ import type { CurrencyId, Payment as PaymentResource, Refund as RefundResource }
 import { paymentTypeId, providerStatus } from '../mapping/status.ts';
 import { compact } from './compact.ts';
 import { formatDateTime, formatOptional } from './datetime.ts';
+import type { BoletoArtifacts } from './boleto.ts';
 import type { PixArtifacts } from './pix.ts';
 
 export interface SerializedRefund {
@@ -16,6 +17,7 @@ export interface PaymentContext {
   liveMode: boolean;
   refunds: readonly SerializedRefund[];
   pix: PixArtifacts | null;
+  boleto?: BoletoArtifacts | null;
   offsetMinutes?: number;
 }
 
@@ -112,7 +114,11 @@ export function serializePayment(payment: Payment, context: PaymentContext): Pay
       net_received_amount: captured ? toDecimal(payment.capturedAmount) - refunded : 0,
       total_paid_amount: captured ? toDecimal(payment.capturedAmount) : 0,
       overpaid_amount: 0,
-      ...(context.pix === null ? {} : { external_resource_url: context.pix.ticket_url }),
+      ...(context.pix !== null
+        ? { external_resource_url: context.pix.ticket_url }
+        : context.boleto == null
+          ? {}
+          : { external_resource_url: context.boleto.ticket_url, digitable_line: context.boleto.line }),
       installment_amount: amount / payment.installments,
     },
     fee_details: [],
@@ -142,6 +148,9 @@ export function serializePayment(payment: Payment, context: PaymentContext): Pay
               ...(identification === null ? {} : { identification }),
             },
           },
+    ...(context.boleto == null
+      ? {}
+      : { barcode: { type: 'itf', content: context.boleto.barcode, width: 2, height: 90 } }),
     point_of_interaction:
       context.pix === null
         ? undefined

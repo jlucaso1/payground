@@ -12,9 +12,9 @@ with the source the shape came from.
 
 ### `Payment`
 
-point_of_interaction is absent from spec3.json; without it there is no Pix QR code on the wire. Shape taken from the Pix guide sample and sdk-nodejs PointOfInteraction.
+point_of_interaction and barcode are absent from spec3.json; without it there is no Pix QR code on the wire. Shape taken from the Pix guide sample and sdk-nodejs PointOfInteraction.
 
-Added: `live_mode`, `collector_id`, `sponsor_id`, `authorization_code`, `call_for_authorize_id`, `money_release_status`, `net_amount`, `taxes_amount`, `shipping_amount`, `counter_currency`, `differential_pricing_id`, `deduction_schema`, `pos_id`, `store_id`, `integrator_id`, `platform_id`, `corporation_id`, `merchant_account_id`, `merchant_number`, `callback_url`, `payment_method_option_id`, `date_of_expiration`, `order`, `payment_method`, `point_of_interaction`, `fee_details`, `charges_details`, `refunds`
+Added: `live_mode`, `collector_id`, `sponsor_id`, `authorization_code`, `call_for_authorize_id`, `money_release_status`, `net_amount`, `taxes_amount`, `shipping_amount`, `counter_currency`, `differential_pricing_id`, `deduction_schema`, `pos_id`, `store_id`, `integrator_id`, `platform_id`, `corporation_id`, `merchant_account_id`, `merchant_number`, `callback_url`, `payment_method_option_id`, `date_of_expiration`, `order`, `payment_method`, `point_of_interaction`, `fee_details`, `charges_details`, `refunds`, `transaction_details`, `barcode`
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 

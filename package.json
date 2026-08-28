@@ -42,6 +42,7 @@
     "test:e2e": "bun test e2e",
     "spec:sync": "bun tools/spec-sync/src/sync.ts",
     "spec:gen": "bun tools/spec-sync/src/gen.ts",
+    "spec:tables": "bun tools/spec-sync/src/tables-cli.ts",
     "start": "bun packages/cli/src/index.ts start"
   }
 }

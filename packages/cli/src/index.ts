@@ -9,7 +9,7 @@ Usage:
   payground --version
 `;
 
-function main(argv: string[]): number {
+function main(argv: string[]): number | null {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
@@ -41,7 +41,18 @@ function main(argv: string[]): number {
 
   const server = createServer(options);
   console.log(`payground listening on ${server.url.origin}`);
-  return 0;
+  if (server.app.defaultSandbox !== null) {
+    console.log(`access token: ${server.app.defaultSandbox.accessToken}`);
+    console.log(`public key:   ${server.app.defaultSandbox.publicKey}`);
+  }
+
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => {
+      void server.stop(true).then(() => process.exit(0));
+    });
+  }
+  return null;
 }
 
-process.exit(main(Bun.argv.slice(2)));
+const code = main(Bun.argv.slice(2));
+if (code !== null) process.exit(code);

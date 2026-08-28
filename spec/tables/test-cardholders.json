@@ -1,0 +1,74 @@
+{
+  "source": "https://www.mercadopago.com.br/developers/en/docs/your-integrations/test/cards.md",
+  "fetchedAt": "2026-08-28",
+  "rows": [
+    {
+      "code": "APRO",
+      "scenario": "Approved payment"
+    },
+    {
+      "code": "OTHE",
+      "scenario": "Declined for general error"
+    },
+    {
+      "code": "CONT",
+      "scenario": "Pending payment"
+    },
+    {
+      "code": "CALL",
+      "scenario": "Declined with validation to authorize"
+    },
+    {
+      "code": "FUND",
+      "scenario": "Declined for insufficient amount"
+    },
+    {
+      "code": "SECU",
+      "scenario": "Declined for invalid security code"
+    },
+    {
+      "code": "EXPI",
+      "scenario": "Declined due to due date issue"
+    },
+    {
+      "code": "FORM",
+      "scenario": "Declined due to form error"
+    },
+    {
+      "code": "CARD",
+      "scenario": "Rejected for missing card_number"
+    },
+    {
+      "code": "INST",
+      "scenario": "Rejected for invalid installments"
+    },
+    {
+      "code": "DUPL",
+      "scenario": "Rejected for duplicate payment"
+    },
+    {
+      "code": "LOCK",
+      "scenario": "Rejected for disabled card"
+    },
+    {
+      "code": "CTNA",
+      "scenario": "Rejected for non-permitted card type"
+    },
+    {
+      "code": "ATTE",
+      "scenario": "Rejected due to exceeded PIN attempts"
+    },
+    {
+      "code": "BLAC",
+      "scenario": "Rejected for being on the blacklist"
+    },
+    {
+      "code": "UNSU",
+      "scenario": "Not supported"
+    },
+    {
+      "code": "TEST",
+      "scenario": "Used to apply amount rules"
+    }
+  ]
+}

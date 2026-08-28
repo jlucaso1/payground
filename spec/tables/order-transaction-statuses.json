@@ -1,0 +1,161 @@
+{
+  "source": "https://www.mercadopago.com.br/developers/en/docs/checkout-api-orders/payment-management/status/transaction-status.md",
+  "fetchedAt": "2026-08-28",
+  "rows": [
+    {
+      "status": "created",
+      "detail": "created",
+      "description": "The transaction was created successfully, but it has not yet been processed. This is the initial state of a transaction after its creation."
+    },
+    {
+      "status": "processed",
+      "detail": "accredited",
+      "description": "The transaction was processed successfully and the amount has been effectively credited."
+    },
+    {
+      "status": "processed",
+      "detail": "partially_refunded",
+      "description": "The transaction was processed successfully and a part of the amount was refunded. This indicates that, although the transaction has been completed, there was a partial return of the amount paid in favor of the payer."
+    },
+    {
+      "status": "processing",
+      "detail": "in_process",
+      "description": "The transaction is being processed. This means that the transaction is underway and has not yet been completed."
+    },
+    {
+      "status": "processing",
+      "detail": "pending_review_manual",
+      "description": "The transaction is underway. This status indicates that it is waiting for a manual review. This usually happens when the order needs additional evaluation before proceeding."
+    },
+    {
+      "status": "action_required",
+      "detail": "waiting_payment",
+      "description": "The transaction requires an additional action and is awaiting payment. This means that the transaction has been initiated, but the payment has not yet been completed."
+    },
+    {
+      "status": "action_required",
+      "detail": "waiting_capture",
+      "description": "The transaction requires an additional action and is awaiting the capture of the payment. This means that the payment has been authorized but has not yet been captured."
+    },
+    {
+      "status": "action_required",
+      "detail": "waiting_transfer",
+      "description": "The transaction requires an additional action and is awaiting the transfer of funds. This means that the payment has been initiated, but the funds have not yet been transferred to the seller's account."
+    },
+    {
+      "status": "action_required",
+      "detail": "pending_challenge",
+      "description": "Transaction pending authentication. The 3DS _Challenge_ was initiated and the buyer has up to 40 minutes to complete it."
+    },
+    {
+      "status": "action_required",
+      "detail": "waiting_retry",
+      "description": "Transaction is awaiting an automatic retry after a failed charge attempt."
+    },
+    {
+      "status": "charged_back",
+      "detail": "in_process",
+      "description": "The transaction has suffered a chargeback. This means it has been disputed and the amount is being reverted."
+    },
+    {
+      "status": "charged_back",
+      "detail": "settled",
+      "description": "The transaction has suffered a chargeback. This means it has been disputed and the amount was refunded to the buyer."
+    },
+    {
+      "status": "charged_back",
+      "detail": "reimbursed",
+      "description": "The transaction has suffered a chargeback. This means it has been disputed and the amount was credited to the seller."
+    },
+    {
+      "status": "expired",
+      "detail": "expired",
+      "description": "The transaction has expired. This means it was not completed within the time limit and was therefore terminated."
+    },
+    {
+      "status": "refunded",
+      "detail": "refunded",
+      "description": "The order has been refunded. This means that the amount of the transaction has been fully returned to the payer."
+    },
+    {
+      "status": "failed",
+      "detail": "bad_filled_card_data",
+      "description": "The transaction failed due to incorrectly filled card data. This may include information such as card number, CVV, expiration date, among others."
+    },
+    {
+      "status": "failed",
+      "detail": "invalid_card_token",
+      "description": "The transaction failed. This means that the transaction failed due to an invalid card token."
+    },
+    {
+      "status": "failed",
+      "detail": "high_risk",
+      "description": "The transaction failed due to a detected high risk. This can occur when the fraud detection system identifies a possible risk in the transaction."
+    },
+    {
+      "status": "failed",
+      "detail": "rejected_by_issuer",
+      "description": "The transaction failed due to rejection by the card issuer."
+    },
+    {
+      "status": "failed",
+      "detail": "required_call_for_authorize",
+      "description": "The transaction failed because a call for authorization is required. This can occur when the card issuer requires additional verification before approving the transaction."
+    },
+    {
+      "status": "failed",
+      "detail": "max_attempts_exceeded",
+      "description": "The transaction failed because the maximum number of attempts was exceeded. This can occur when the number of payment attempts exceeds the limit allowed by the system."
+    },
+    {
+      "status": "failed",
+      "detail": "card_disabled",
+      "description": "The transaction failed because the card is disabled. This can occur when the card has been blocked or deactivated by the issuer."
+    },
+    {
+      "status": "failed",
+      "detail": "insufficient_amount",
+      "description": "The transaction failed due to insufficient funds. This can occur when the available balance is not enough to cover the transaction amount."
+    },
+    {
+      "status": "failed",
+      "detail": "amount_limit_exceeded",
+      "description": "The transaction failed because the amount limit was exceeded. This can occur when the transaction amount exceeds the limit set by the card issuer or the system."
+    },
+    {
+      "status": "failed",
+      "detail": "processing_error",
+      "description": "The transaction failed due to a processing error. This can occur when there is a technical problem or an error in the system that prevents the transaction from being completed. If the problem persists, contact support, and provide the x-request-id along with details about the transaction conducted."
+    },
+    {
+      "status": "failed",
+      "detail": "invalid_installments",
+      "description": "The transaction failed due to invalid installments. This can occur when the number of installments selected is not accepted by the card issuer or the system."
+    },
+    {
+      "status": "failed",
+      "detail": "3ds_challenge_expired",
+      "description": "The transaction failed due to the expiration of the 3DS challenge. This can occur when the time to complete the 3DS authentication has expired."
+    },
+    {
+      "status": "failed",
+      "detail": "card_insufficient_amount",
+      "description": "The card chosen for the transaction does not have sufficient funds."
+    },
+    {
+      "status": "canceled",
+      "detail": "canceled",
+      "description": "The transaction was canceled and will not be processed."
+    },
+    {
+      "status": "processing",
+      "detail": "in_review",
+      "description": "The payment is under automatic risk and fraud prevention analysis. This assessment considers factors such as transaction history, buyer profile, and payment method characteristics. No action is required; the analysis is completed automatically and the payment will be approved or rejected."
+    },
+    {
+      "status": "in_review",
+      "detail": "in_review",
+      "description": "The order is under review. This review may be triggered by factors related to the buyer's or seller's account, the payment method, or transaction characteristics, such as compliance or regulatory requirements. No action is required unless explicitly requested."
+    }
+  ]
+}

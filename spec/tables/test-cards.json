@@ -1,0 +1,34 @@
+{
+  "source": "https://www.mercadopago.com.br/developers/en/docs/your-integrations/test/cards.md",
+  "fetchedAt": "2026-08-28",
+  "rows": [
+    {
+      "type": "Credit card",
+      "brand": "Mastercard",
+      "number": "5480 8328 0103 3311",
+      "securityCode": "123",
+      "expiration": "11/30"
+    },
+    {
+      "type": "Credit card",
+      "brand": "Visa",
+      "number": "4235 6477 2802 5682",
+      "securityCode": "123",
+      "expiration": "11/30"
+    },
+    {
+      "type": "Credit card",
+      "brand": "American Express",
+      "number": "3753 651535 56885",
+      "securityCode": "1234",
+      "expiration": "11/30"
+    },
+    {
+      "type": "Debit card",
+      "brand": "Elo",
+      "number": "5067 7667 8388 8311",
+      "securityCode": "123",
+      "expiration": "11/30"
+    }
+  ]
+}

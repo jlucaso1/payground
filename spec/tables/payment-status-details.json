@@ -1,0 +1,231 @@
+{
+  "source": "https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/response-handling/query-results.md",
+  "fetchedAt": "2026-08-28",
+  "rows": [
+    {
+      "status": "approved",
+      "detail": "accredited",
+      "description": "Done! Your payment was credited. Your statement will show the amount charge as statement_descriptor."
+    },
+    {
+      "status": "approved",
+      "detail": "partially_refunded",
+      "description": "The payment has at least one partial refund."
+    },
+    {
+      "status": "authorized",
+      "detail": "pending_capture",
+      "description": "The payment has been authorized and is waiting for capture."
+    },
+    {
+      "status": "in_process",
+      "detail": "offline_process",
+      "description": "Due to lack of online processing, the payment is being processed offline."
+    },
+    {
+      "status": "in_process",
+      "detail": "pending_contingency",
+      "description": "We are processing your payment. Don't worry! You will be notified via e-mail if the payment was credited in less than 2 business days."
+    },
+    {
+      "status": "in_process",
+      "detail": "pending_review_manual",
+      "description": "We are processing your payment. Don't worry! You will be notified via e-mail if it is credited or if we need more information in less than 2 business days."
+    },
+    {
+      "status": "in_process",
+      "detail": "deferred_retry",
+      "description": "The payment was scheduled to retry later."
+    },
+    {
+      "status": "pending",
+      "detail": "pending_waiting_transfer",
+      "description": "In cases of bank transfer, the status_detail is obtained by waiting for the user to finish the payment process in their bank."
+    },
+    {
+      "status": "pending",
+      "detail": "pending_waiting_payment",
+      "description": "In cases of offline payments, it remains pending until the user finishes the payment."
+    },
+    {
+      "status": "pending",
+      "detail": "pending_challenge",
+      "description": "n cases of credit card payments, there is a pending confirmation due to a challenge."
+    },
+    {
+      "status": "cancelled",
+      "detail": "expired",
+      "description": "The payment has been canceled after spending 30 days in a pending status."
+    },
+    {
+      "status": "cancelled",
+      "detail": "by_collector",
+      "description": "The payment has been canceled by collector."
+    },
+    {
+      "status": "cancelled",
+      "detail": "by_payer",
+      "description": "The payment has been canceled by payer."
+    },
+    {
+      "status": "charged_back",
+      "detail": "settled",
+      "description": "The money was retained after a chargeback process."
+    },
+    {
+      "status": "charged_back",
+      "detail": "reimbursed",
+      "description": "The money was reimbursed after a chargeback process."
+    },
+    {
+      "status": "charged_back",
+      "detail": "in_process",
+      "description": "The payment is in process due to the payer disowning it."
+    },
+    {
+      "status": "in_mediation",
+      "detail": "pending",
+      "description": "The payment is under a mediation or dispute process."
+    },
+    {
+      "status": "refunded",
+      "detail": "refunded",
+      "description": "The payment has been refunded by the collector."
+    },
+    {
+      "status": "refunded",
+      "detail": "by_admin",
+      "description": "The payment has been refunded by the administrator."
+    },
+    {
+      "status": "rejected",
+      "detail": "bank_error",
+      "description": "If the payment method is bank transfer, the payment was rejected due to an error with the bank."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_3ds_challenge",
+      "description": "The payment is rejected for not surpasing the 3DS challenge."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_3ds_mandatory",
+      "description": "The payment is rejected for not having a 3DS challenge when it is mandatory."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_bad_filled_card_number",
+      "description": "Check card number."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_bad_filled_date",
+      "description": "Check expiration date."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_bad_filled_other",
+      "description": "Check data."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_bad_filled_security_code",
+      "description": "Check card security code."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_blacklist",
+      "description": "Your payment couldn't be processed."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_call_for_authorize",
+      "description": "Authorize the amount payment to payment_method_id."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_card_disabled",
+      "description": "Call payment_method_id to activate your card, or use a different payment method. The phone is on the back of your card."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_duplicated_payment",
+      "description": "You have already made a payment for that value. If you need to pay again, use a different card or payment method."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_high_risk",
+      "description": "Your payment was rejected. Select a different payment method; we recommend cash methods."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_insufficient_amount",
+      "description": "Your payment_method_id does not have enough funds."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_invalid_installments",
+      "description": "payment_method_id does not process payments in installments installments."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_max_attempts",
+      "description": "You reached the allowed attempt limit. Select a different card or payment method."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_other_reason",
+      "description": "payment_method_id did not process payment."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_time_out",
+      "description": "Mercado Pago did not receive a response in the expected time."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_amount_rate_limit_exceeded",
+      "description": "Rejected because it exceeded the limit (CAP - Maximum Allowed Capacity) of the payment method."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_insufficient_data",
+      "description": "Rejected due to the lack of all required mandatory information in the payment."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_by_bank",
+      "description": "Operation rejected by the bank."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_by_regulations",
+      "description": "Payment rejected by regulations."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_high_risk",
+      "description": "Rejected due to risk assessment, credit scoring, or suspected fraud."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_by_biz_rule",
+      "description": "Payment rejected by business rules."
+    },
+    {
+      "status": "rejected",
+      "detail": "rejected_other_reason",
+      "description": "Payment rejected for an unclassified reason."
+    },
+    {
+      "status": "rejected",
+      "detail": "insufficient_amount",
+      "description": "Payment rejected due to insufficient amount."
+    },
+    {
+      "status": "rejected",
+      "detail": "cc_rejected_card_type_not_allowed",
+      "description": "The payment was rejected because the user does not have the credit function enabled on their multiple card (debit and credit)."
+    }
+  ]
+}

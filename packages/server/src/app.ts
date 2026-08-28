@@ -9,6 +9,7 @@ import {
 } from '@payground/mercadopago/api/payments.ts';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { Storage } from '@payground/storage';
+import { dashboardHandler } from './dashboard.ts';
 import { health } from './health.ts';
 import * as control from './control/api.ts';
 import { type AppRuntime, endpoint, fromResult } from './http/handler.ts';
@@ -37,6 +38,8 @@ export interface AppOptions {
    * user-supplied URLs cannot reach internal services.
    */
   allowPrivateWebhookTargets?: boolean;
+  /** Directory holding the prebuilt dashboard. Omitted means the dashboard is not served. */
+  dashboardRoot?: string;
   /** Creates a ready-to-use sandbox on start. Pass false for a bare instance. */
   bootstrap?: BootstrapSandbox | false;
 }
@@ -80,6 +83,12 @@ export function createApp(options: AppOptions = {}): App {
 
   const routes = {
     '/_payground/health': () => Response.json(health(clock, startedAt)),
+    ...(options.dashboardRoot === undefined
+      ? {}
+      : {
+          '/_payground': dashboardHandler(options.dashboardRoot),
+          '/_payground/assets/*': dashboardHandler(options.dashboardRoot),
+        }),
 
     '/_payground/sandboxes': {
       GET: () => send(control.listSandboxes(deps)),

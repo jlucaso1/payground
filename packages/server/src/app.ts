@@ -20,6 +20,7 @@ import {
   searchPreferences,
   updatePreference,
 } from '@payground/mercadopago/api/preferences.ts';
+import { paymentTicket } from '@payground/mercadopago/api/ticket.ts';
 import { checkoutPage, checkoutSubmit } from '@payground/mercadopago/checkout/page.ts';
 import {
   createPlan,
@@ -214,6 +215,20 @@ export function createApp(options: AppOptions = {}): App {
     },
     '/merchant_orders/:id': {
       GET: endpoint(runtime, ({ service, request }) => fromResult(getMerchantOrder(service, param(request, 'id')))),
+    },
+
+    '/payments/:id/ticket': {
+      GET: async (request: Request) => {
+        const sandbox = storage.sandboxes.list()[0];
+        if (sandbox === undefined) return new Response('no sandbox', { status: 404 });
+        const rendered = paymentTicket(contextFor(runtime, sandbox), param(request, 'id'));
+        return rendered.ok
+          ? new Response(rendered.value.html, {
+              status: rendered.value.status,
+              headers: { 'content-type': 'text/html; charset=utf-8' },
+            })
+          : Response.json(rendered.error, { status: rendered.error.status });
+      },
     },
 
     '/checkout/:id': {

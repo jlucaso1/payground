@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@payground/core": ["./packages/core/src/index.ts"],
+      "@payground/core/*": ["./packages/core/src/*"],
+      "@payground/storage": ["./packages/storage/src/index.ts"],
+      "@payground/storage/*": ["./packages/storage/src/*"],
+      "@payground/mercadopago": ["./packages/mercadopago/src/index.ts"],
+      "@payground/mercadopago/*": ["./packages/mercadopago/src/*"],
+      "@payground/server": ["./packages/server/src/index.ts"],
+      "@payground/server/*": ["./packages/server/src/*"]
+    }
+  },
+  "include": ["packages/**/*.ts", "tools/**/*.ts", "e2e/**/*.ts"],
+  "exclude": ["node_modules"]
+}

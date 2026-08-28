@@ -1,0 +1,10 @@
+{
+  "name": "@payground/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": {
+    "mercadopago": "^3.6.0"
+  }
+}

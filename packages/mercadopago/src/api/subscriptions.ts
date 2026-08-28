@@ -19,7 +19,7 @@ import {
 } from '../generated/validate.ts';
 import { compact } from '../serialize/compact.ts';
 import { formatDateTime } from '../serialize/datetime.ts';
-import type { EventNotice, Rendered, ServiceContext } from './context.ts';
+import type { NotificationTopic, Rendered, ServiceContext } from './context.ts';
 import { createPayment } from './payments.ts';
 
 /* ------------------------------------------------------------------ model */
@@ -109,18 +109,10 @@ const DAY_MS = 86_400_000;
 
 /* ------------------------------------------------------------------ events */
 
-type SubscriptionTopic =
-  | 'subscription_preapproval'
-  | 'subscription_preapproval_plan'
-  | 'subscription_authorized_payment';
+type SubscriptionTopic = Extract<NotificationTopic, `subscription_${string}`>;
 
-/**
- * The real notification topics are subscription-specific, but `EventNotice` only models
- * `type: 'payment'`. api/context.ts is owned elsewhere, so the widening is confined here.
- */
 function emit(context: ServiceContext, type: SubscriptionTopic, action: string, dataId: string): void {
-  const notice = { type, action, dataId, notificationUrl: null };
-  context.events.emit(notice as unknown as EventNotice);
+  context.events.emit({ type, action, dataId, notificationUrl: null });
 }
 
 /* ------------------------------------------------------------------ dates */

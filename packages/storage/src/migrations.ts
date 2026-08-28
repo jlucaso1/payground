@@ -104,4 +104,74 @@ create table idempotency (
 ) strict;
 `,
   },
+  {
+    version: 2,
+    name: 'documents-webhooks-timers',
+    sql: `
+create table documents (
+  sandbox_id text not null references sandboxes(id) on delete cascade,
+  kind text not null,
+  id text not null,
+  sequence integer not null,
+  status text not null,
+  external_reference text,
+  lookup text,
+  created_at integer not null,
+  updated_at integer not null,
+  expires_at integer,
+  doc text not null,
+  primary key (sandbox_id, kind, id)
+) strict;
+
+create unique index documents_sequence on documents (sandbox_id, kind, sequence);
+create index documents_status on documents (sandbox_id, kind, status, created_at);
+create index documents_external_reference on documents (sandbox_id, kind, external_reference);
+create index documents_lookup on documents (sandbox_id, kind, lookup);
+
+create table webhook_deliveries (
+  sandbox_id text not null references sandboxes(id) on delete cascade,
+  id text not null,
+  sequence integer not null,
+  event text not null,
+  resource_type text not null,
+  resource_id text not null,
+  url text not null,
+  status text not null,
+  attempts integer not null,
+  request_headers text not null,
+  request_body text not null,
+  last_status_code integer,
+  last_error text,
+  response_body text,
+  next_attempt_at integer,
+  created_at integer not null,
+  updated_at integer not null,
+  primary key (sandbox_id, id)
+) strict;
+
+create index webhook_pending on webhook_deliveries (status, next_attempt_at);
+create index webhook_by_resource on webhook_deliveries (sandbox_id, resource_id);
+
+create table webhook_attempts (
+  sandbox_id text not null,
+  delivery_id text not null,
+  seq integer not null,
+  at integer not null,
+  status_code integer,
+  error text,
+  duration_ms integer not null,
+  primary key (sandbox_id, delivery_id, seq),
+  foreign key (sandbox_id, delivery_id) references webhook_deliveries (sandbox_id, id) on delete cascade
+) strict;
+
+create table fault_profiles (
+  sandbox_id text primary key references sandboxes(id) on delete cascade,
+  latency_ms integer not null,
+  error_rate real not null,
+  unavailable integer not null,
+  duplicate_webhooks integer not null,
+  webhook_failure_rate real not null
+) strict;
+`,
+  },
 ];

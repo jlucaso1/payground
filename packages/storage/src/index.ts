@@ -1,10 +1,12 @@
 import { Database } from 'bun:sqlite';
 import type { SandboxId, SandboxStore } from '@payground/core';
+import { SqliteDocumentRepository } from './documents.ts';
 import { SqliteIdempotencyStore } from './idempotency.ts';
 import { MIGRATIONS } from './migrations.ts';
 import { SqlitePaymentRepository } from './payments.ts';
 import { SqliteRefundRepository } from './refunds.ts';
 import { SqliteSandboxRegistry } from './registry.ts';
+import { SqliteDeliveryQueue, SqliteFaultStore, SqliteWebhookRepository } from './webhooks.ts';
 
 export interface StorageOptions {
   /** File path, or `:memory:` (the default). */
@@ -13,9 +15,11 @@ export interface StorageOptions {
 
 export class Storage {
   readonly sandboxes: SqliteSandboxRegistry;
+  readonly queue: SqliteDeliveryQueue;
 
   private constructor(private readonly db: Database) {
     this.sandboxes = new SqliteSandboxRegistry(db);
+    this.queue = new SqliteDeliveryQueue(db);
   }
 
   static open(options: StorageOptions = {}): Storage {
@@ -52,6 +56,9 @@ export class Storage {
       payments: new SqlitePaymentRepository(db, id),
       refunds: new SqliteRefundRepository(db, id),
       idempotency: new SqliteIdempotencyStore(db, id),
+      documents: new SqliteDocumentRepository(db, id),
+      webhooks: new SqliteWebhookRepository(db, id),
+      faults: new SqliteFaultStore(db, id),
       nextSequence(scope: string): number {
         const row = db
           .query<{ value: number }, [string, string]>(

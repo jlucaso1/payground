@@ -65,7 +65,7 @@ export class SqliteSandboxRegistry implements SandboxRegistry {
   /** Drops the sandbox's data but keeps its credentials, so tests can start over. */
   reset(id: SandboxId): void {
     this.db.transaction(() => {
-      for (const table of ['payment_events', 'refunds', 'payments', 'idempotency', 'counters']) {
+      for (const table of ['webhook_attempts', 'webhook_deliveries', 'payment_events', 'refunds', 'payments', 'documents', 'idempotency', 'counters']) {
         this.db.query(`delete from ${table} where sandbox_id = ?`).run(id);
       }
     })();

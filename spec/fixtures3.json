@@ -1,0 +1,320 @@
+{
+  "payment": {
+    "x-mp-resourceId": "payment",
+    "id": 1234567890,
+    "date_created": "2024-01-15T10:30:00.000-03:00",
+    "date_approved": "2024-01-15T10:30:02.000-03:00",
+    "date_last_updated": "2024-01-15T10:30:02.000-03:00",
+    "date_of_expiration": null,
+    "money_release_date": "2024-02-15T10:30:02.000-03:00",
+    "operation_type": "regular_payment",
+    "issuer_id": "24",
+    "payment_method_id": "visa",
+    "payment_type_id": "credit_card",
+    "status": "approved",
+    "status_detail": "accredited",
+    "currency_id": "BRL",
+    "description": "Premium subscription — 1 month",
+    "live_mode": false,
+    "payer": {
+      "id": "987654321",
+      "email": "test@example.com",
+      "identification": {
+        "type": "CPF",
+        "number": "12345678909"
+      },
+      "type": "registered"
+    },
+    "transaction_amount": 100.5,
+    "transaction_amount_refunded": 0,
+    "coupon_amount": 0,
+    "transaction_details": {
+      "net_received_amount": 93.47,
+      "total_paid_amount": 100.5,
+      "overpaid_amount": 0,
+      "external_resource_url": null,
+      "installment_amount": 100.5
+    },
+    "captured": true,
+    "binary_mode": false,
+    "installments": 1,
+    "card": {
+      "last_four_digits": "4321",
+      "first_six_digits": "411111",
+      "expiration_year": 2028,
+      "expiration_month": 12,
+      "date_created": "2024-01-15T10:30:00.000-03:00",
+      "date_last_updated": "2024-01-15T10:30:00.000-03:00",
+      "cardholder": {
+        "name": "JOHN DOE",
+        "identification": {
+          "type": "CPF",
+          "number": "12345678909"
+        }
+      }
+    },
+    "external_reference": "ORDER-2024-001234",
+    "metadata": {}
+  },
+  "payment_pix": {
+    "x-mp-resourceId": "payment_pix",
+    "id": 2345678901,
+    "date_created": "2024-01-15T11:00:00.000-03:00",
+    "date_approved": null,
+    "date_last_updated": "2024-01-15T11:00:00.000-03:00",
+    "date_of_expiration": "2024-01-16T11:00:00.000-03:00",
+    "operation_type": "regular_payment",
+    "payment_method_id": "pix",
+    "payment_type_id": "bank_transfer",
+    "status": "pending",
+    "status_detail": "waiting_transfer",
+    "currency_id": "BRL",
+    "description": "Store purchase",
+    "live_mode": false,
+    "payer": {
+      "email": "test@example.com",
+      "identification": {
+        "type": "CPF",
+        "number": "12345678909"
+      }
+    },
+    "transaction_amount": 100.5,
+    "transaction_amount_refunded": 0,
+    "transaction_details": {
+      "external_resource_url": "https://www.mercadopago.com.br/pix/...",
+      "net_received_amount": 0,
+      "total_paid_amount": 0,
+      "overpaid_amount": 0
+    },
+    "external_reference": "ORDER-2024-001235"
+  },
+  "refund": {
+    "x-mp-resourceId": "refund",
+    "id": 987654321,
+    "payment_id": 1234567890,
+    "date_created": "2024-01-16T09:00:00.000-03:00",
+    "amount": 50.0,
+    "refund_mode": "standard",
+    "status": "approved"
+  },
+  "order": {
+    "x-mp-resourceId": "order",
+    "id": "01JG28GRB9NYTG6VVS3R5N58YT",
+    "type": "online",
+    "status": "closed",
+    "status_detail": "paid",
+    "external_reference": "ORDER-2024-001",
+    "total_amount": "100.00",
+    "capture_mode": "automatic",
+    "processing_mode": "automatic",
+    "date_created": "2024-01-15T10:30:00.000-03:00",
+    "date_last_updated": "2024-01-15T10:30:05.000-03:00",
+    "payer": {
+      "email": "test@example.com"
+    },
+    "transactions": {
+      "payments": [
+        {
+          "id": "pay_123456",
+          "status": "processed",
+          "status_detail": "accredited",
+          "amount": "100.00",
+          "payment_method": {
+            "id": "visa",
+            "type": "credit_card",
+            "installments": 1
+          },
+          "date_created": "2024-01-15T10:30:00.000-03:00"
+        }
+      ]
+    }
+  },
+  "preference": {
+    "x-mp-resourceId": "preference",
+    "id": "123456789-abcd1234-ef56-7890-abcd-ef1234567890",
+    "init_point": "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=123456789-abcd1234-ef56-7890-abcd-ef1234567890",
+    "sandbox_init_point": "https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=123456789-abcd1234-ef56-7890-abcd-ef1234567890",
+    "items": [
+      {
+        "id": "PROD-001",
+        "title": "Premium Plan",
+        "quantity": 1,
+        "unit_price": 99.9,
+        "currency_id": "BRL"
+      }
+    ],
+    "payer": {
+      "email": "customer@example.com"
+    },
+    "back_urls": {
+      "success": "https://mystore.com/success",
+      "failure": "https://mystore.com/failure",
+      "pending": "https://mystore.com/pending"
+    },
+    "auto_return": "approved",
+    "external_reference": "ORDER-2024-001234",
+    "date_created": "2024-01-15T10:00:00.000-03:00",
+    "total_amount": 99.9,
+    "expires": false,
+    "collector_id": 123456789
+  },
+  "customer": {
+    "x-mp-resourceId": "customer",
+    "id": "123456789-abcd",
+    "email": "customer@example.com",
+    "first_name": "João",
+    "last_name": "Silva",
+    "phone": {
+      "area_code": "11",
+      "number": "987654321"
+    },
+    "identification": {
+      "type": "CPF",
+      "number": "12345678909"
+    },
+    "address": {
+      "zip_code": "01310-100",
+      "street_name": "Av. Paulista",
+      "street_number": "1000"
+    },
+    "date_registered": "2023-06-01T00:00:00.000-03:00",
+    "date_created": "2023-06-01T09:00:00.000-03:00",
+    "date_last_updated": "2024-01-10T15:00:00.000-03:00",
+    "live_mode": false,
+    "cards": []
+  },
+  "card": {
+    "x-mp-resourceId": "card",
+    "id": "1234567890",
+    "customer_id": "123456789-abcd",
+    "first_six_digits": "411111",
+    "last_four_digits": "4321",
+    "expiration_month": 12,
+    "expiration_year": 2028,
+    "date_created": "2024-01-10T15:00:00.000-03:00",
+    "date_last_updated": "2024-01-10T15:00:00.000-03:00",
+    "cardholder": {
+      "name": "JOÃO SILVA",
+      "identification": {
+        "type": "CPF",
+        "number": "12345678909"
+      }
+    },
+    "payment_method": {
+      "id": "visa",
+      "name": "Visa",
+      "payment_type_id": "credit_card"
+    },
+    "issuer": {
+      "id": 24,
+      "name": "Visa"
+    },
+    "security_code": {
+      "mode": "mandatory",
+      "length": 3
+    }
+  },
+  "card_token": {
+    "x-mp-resourceId": "card_token",
+    "id": "TEST-ff8080814c11e237014c1ff593b57b4d",
+    "first_six_digits": "411111",
+    "last_four_digits": "4321",
+    "expiration_month": 12,
+    "expiration_year": 2028,
+    "date_created": "2024-01-15T10:29:55.000-03:00",
+    "date_due": "2024-01-22T10:29:55.000-03:00",
+    "live_mode": false,
+    "luhn_validation": true,
+    "status": "active",
+    "cardholder": {
+      "name": "JOHN DOE",
+      "identification": {
+        "type": "CPF",
+        "number": "12345678909"
+      }
+    }
+  },
+  "subscription_plan": {
+    "x-mp-resourceId": "subscription_plan",
+    "id": "2c9380847e9c5058017ea64ea8260b60",
+    "reason": "Monthly Premium Subscription",
+    "status": "active",
+    "auto_recurring": {
+      "frequency": 1,
+      "frequency_type": "months",
+      "transaction_amount": 29.9,
+      "currency_id": "BRL"
+    },
+    "date_created": "2024-01-01T10:00:00.000-03:00",
+    "last_modified": "2024-01-01T10:00:00.000-03:00",
+    "init_point": "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2c9380847e9c5058017ea64ea8260b60"
+  },
+  "subscription": {
+    "x-mp-resourceId": "subscription",
+    "id": "sub_abcdef1234567890",
+    "payer_id": 987654321,
+    "payer_email": "customer@example.com",
+    "preapproval_plan_id": "2c9380847e9c5058017ea64ea8260b60",
+    "reason": "Monthly Premium Subscription",
+    "status": "authorized",
+    "date_created": "2024-01-10T14:00:00.000-03:00",
+    "last_modified": "2024-01-10T14:00:00.000-03:00",
+    "auto_recurring": {
+      "frequency": 1,
+      "frequency_type": "months",
+      "transaction_amount": 29.9,
+      "currency_id": "BRL"
+    },
+    "next_payment_date": "2024-02-10T14:00:00.000-03:00",
+    "payment_method_id": "visa",
+    "external_reference": "CUSTOMER-ID-12345",
+    "init_point": "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=sub_abcdef1234567890"
+  },
+  "chargeback": {
+    "x-mp-resourceId": "chargeback",
+    "id": "chb_abc123",
+    "resource": "payment",
+    "reason_code": "4853",
+    "reason_description": "Cardholder Dispute",
+    "amount": 100.5,
+    "coverage_applied": false,
+    "coverage_elegible": true,
+    "documentation_required": true,
+    "documentation_status": "not_supplied",
+    "date_created": "2024-01-20T10:00:00.000-03:00",
+    "last_updated": "2024-01-20T10:00:00.000-03:00"
+  },
+  "merchant_order": {
+    "x-mp-resourceId": "merchant_order",
+    "id": 1234,
+    "status": "closed",
+    "external_reference": "ORDER-2024-001234",
+    "preference_id": "123456789-abcd1234-ef56-7890-abcd-ef1234567890",
+    "payments": [
+      {
+        "id": 1234567890,
+        "transaction_amount": 100.5,
+        "total_paid_amount": 100.5,
+        "shipping_cost": 0,
+        "currency_id": "BRL",
+        "status": "approved",
+        "status_detail": "accredited"
+      }
+    ],
+    "total_amount": 100.5,
+    "paid_amount": 100.5,
+    "refunded_amount": 0,
+    "date_created": "2024-01-15T10:30:00.000-03:00",
+    "last_updated": "2024-01-15T10:30:05.000-03:00"
+  },
+  "oauth_token": {
+    "x-mp-resourceId": "oauth_token",
+    "access_token": "APP_USR-1234-0115-abcd1234ef567890abcd-123456789",
+    "token_type": "bearer",
+    "expires_in": 15552000,
+    "scope": "offline_access read write",
+    "refresh_token": "TG-abcd1234ef567890-123456789",
+    "user_id": 123456789,
+    "public_key": "APP_USR-12345678-abcd-efgh-ijkl-mnopqrstuvwx"
+  }
+}

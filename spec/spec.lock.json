@@ -1,0 +1,9 @@
+{
+  "repo": "mercadopago/openapi",
+  "commit": "73bc0e498b966591b9d27ef1222d1fdecdbf42d7",
+  "sha256": {
+    "spec3.json": "da7e3a7482982b1b6880a5f71411edcab54ce354a8eda55a970ec6c09973592b",
+    "fixtures3.json": "d8d89c3fdba7c0369c01eab0b9ff0427200f75e113cab42ba76319327103e1d9",
+    "overlays/MLB.yaml": "66b5dcef0c26bb8840991c68f235e8b79ed7cf199a166921b1409eaac1e9ee65"
+  }
+}

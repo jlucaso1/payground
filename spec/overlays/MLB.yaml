@@ -1,0 +1,117 @@
+overlay: "1.0.0"
+info:
+  title: MercadoPago MLB (Brazil) Overlay
+  version: "1.0.0"
+  description: >
+    Country-specific additions for Brazil (site_id: MLB).
+    Currency: BRL. Key payment methods: Visa, Mastercard, Elo, Hipercard,
+    Boleto Bancário, Pix, Caixa, Mercado Pago wallet.
+    Identification types: CPF (individuals), CNPJ (companies).
+
+actions:
+  - target: "$.info"
+    description: Add Brazil-specific server note
+    update:
+      x-mp-country-note: >
+        Brazil (MLB): Currency BRL. Pix is available 24/7 with instant settlement.
+        Boleto expires in 1-3 days depending on issuer. CPF required for most payments.
+        Elo and Hipercard are Brazil-specific card brands.
+
+  - target: "$.paths['/v1/payments'].post.requestBody.content['application/json'].examples"
+    description: Add Brazil-specific payment examples
+    update:
+      elo_brazil:
+        summary: Elo credit card — Brazil
+        x-mp-sites: [MLB]
+        value:
+          transaction_amount: 150.00
+          token: "<CARD_TOKEN>"
+          description: "Purchase"
+          installments: 3
+          payment_method_id: elo
+          payer:
+            email: "test@example.com"
+            identification:
+              type: CPF
+              number: "12345678909"
+      hipercard_brazil:
+        summary: Hipercard — Brazil
+        x-mp-sites: [MLB]
+        value:
+          transaction_amount: 200.00
+          token: "<CARD_TOKEN>"
+          description: "Purchase"
+          installments: 1
+          payment_method_id: hipercard
+          payer:
+            email: "test@example.com"
+            identification:
+              type: CPF
+              number: "12345678909"
+      account_money_brazil:
+        summary: Mercado Pago wallet — Brazil
+        x-mp-sites: [MLB]
+        value:
+          transaction_amount: 100.00
+          payment_method_id: account_money
+          payer:
+            email: "test@example.com"
+            identification:
+              type: CPF
+              number: "12345678909"
+
+  - target: "$.paths['/v1/orders'].post.requestBody.content['application/json'].examples"
+    description: Add Brazil order examples
+    update:
+      boleto_order_brazil:
+        summary: Order with Boleto — Brazil
+        x-mp-sites: [MLB]
+        value:
+          type: online
+          processing_mode: automatic
+          total_amount: "100.00"
+          payer:
+            email: "test@example.com"
+            first_name: "João"
+            last_name: "Silva"
+            identification:
+              type: CPF
+              number: "12345678909"
+          transactions:
+            payments:
+              - amount: "100.00"
+                payment_method:
+                  id: bolbradesco
+                  type: ticket
+
+  - target: "$.paths['/v1/transaction-intents/process']"
+    description: Mark as Brazil-specific Pix/bank transfer endpoint
+    update:
+      x-mp-sites: [MLB]
+
+  - target: "$.components"
+    description: Brazil-specific schemas
+    update:
+      x-mp-mlb-payment-methods:
+        credit_cards: [visa, master, elo, hipercard, amex, diners, cabal]
+        debit_cards: [debvisa, debmaster, elo]
+        bank_transfer: [pix]
+        ticket: [bolbradesco, pec]
+        digital_wallets: [account_money]
+      x-mp-mlb-identification-types:
+        - id: CPF
+          name: Cadastro de Pessoas Físicas
+          type: number
+          min_length: 11
+          max_length: 11
+          description: Individual taxpayer identification (digits only, no dots or dashes)
+        - id: CNPJ
+          name: Cadastro Nacional da Pessoa Jurídica
+          type: number
+          min_length: 14
+          max_length: 14
+          description: Company taxpayer identification (digits only)
+      x-mp-mlb-pix-note: >
+        Pix transactions settle instantly 24/7, including weekends and holidays.
+        The payer scans a QR code or copies a Pix code from the payment URL.
+        Transactions auto-expire — check date_of_expiration in payment response.

@@ -1,5 +1,6 @@
-node_modules/
 dist/
+node_modules/
+packages/cli/dist/
+.payground/
 *.sqlite
 *.sqlite-*
-.payground/

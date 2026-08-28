@@ -29,7 +29,7 @@ ENV NODE_ENV=production \
     PAYGROUND_PORT=8080 \
     PAYGROUND_DB=/data/payground.sqlite
 
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/packages/cli/dist ./dist
 COPY --chown=bun:bun LICENSE README.md ./
 
 # The named volume inherits this ownership, so the non-root user can write the database.

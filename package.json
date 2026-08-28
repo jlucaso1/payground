@@ -1,8 +1,27 @@
 {
   "name": "payground",
   "private": true,
+  "bin": {
+    "payground": "./dist/payground.js"
+  },
+  "files": [
+    "dist",
+    "preload.ts",
+    "README.md",
+    "DEPLOY.md",
+    "CONTRIBUTING.md",
+    "FIDELITY.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
-  "workspaces": ["packages/*", "tools/*", "e2e"],
+  "workspaces": [
+    "packages/*",
+    "tools/*",
+    "e2e"
+  ],
   "dependencies": {},
   "devDependencies": {
     "@types/bun": "^1.4.0",
@@ -15,6 +34,9 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
+    "build": "bun run build:dashboard && bun run build:cli",
+    "build:cli": "bun build packages/cli/src/index.ts --target=bun --outfile dist/payground.js --external bun-plugin-tailwind --minify",
+    "build:dashboard": "bun packages/dashboard/src/cli-build.ts dist/dashboard",
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/dashboard",
     "test": "bun test packages tools",
     "test:e2e": "bun test e2e",

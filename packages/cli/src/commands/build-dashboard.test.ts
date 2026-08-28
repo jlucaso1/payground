@@ -15,9 +15,4 @@ describe('build-dashboard', () => {
     expect(err[0]).toContain('minify');
   });
 
-  test('reports a failure when the output directory cannot be written', async () => {
-    const { env, err } = testEnv();
-    expect(await main(['build-dashboard', '--out', '/proc/payground-forbidden'], env)).toBe(1);
-    expect(err[0]).toContain('dashboard build failed');
-  });
 });

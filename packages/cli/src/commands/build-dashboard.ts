@@ -31,7 +31,7 @@ export async function runBuildDashboard(argv: readonly string[], env: Env): Prom
     return OK;
   } catch (error) {
     env.io.err(`dashboard build failed: ${error instanceof Error ? error.message : String(error)}`);
-    env.io.err('the dashboard is built from source; run this from a checkout with dev dependencies installed');
+    env.io.err('the dashboard is built from source: run this from a checkout with dev dependencies installed');
     return FAILURE;
   }
 }

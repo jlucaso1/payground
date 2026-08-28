@@ -60,6 +60,12 @@ In the Pix guide sample, tag 26 declares length 60 for 64 characters of content 
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 
+### Merchant orders — Merchant orders are read-only and derived from preferences
+
+The real API exposes POST /merchant_orders and PUT /merchant_orders/{id}. payground creates a merchant order when a Checkout Pro preference first receives a payment and keeps its totals and order_status in step, but does not accept direct creation or update.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post
+
 ### Node SDK — Per-call requestOptions leak into the shared client configuration
 
 Payment.create and friends assign `this.config.options = {...this.config.options, ...requestOptions}`, so a per-call X-Idempotency-Key is pinned onto the client and reused by every later request. Against the real API this silently replays a stale response; against payground it surfaces as a 409. Use a fresh client per idempotency key, or omit requestOptions.

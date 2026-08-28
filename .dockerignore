@@ -1,0 +1,10 @@
+.git
+.github
+**/node_modules
+dist
+docs
+*.sqlite
+*.sqlite-*
+.payground
+Dockerfile
+docker-compose.yml

@@ -3,15 +3,14 @@ import { type ErrorBody, badRequest, notFound } from '../errors.ts';
 import { readNumber, readString } from '../api/document.ts';
 import { attachPayment, orderForPreference } from '../api/merchant-orders.ts';
 import { SITE_ID, type PreferenceView, initPoint, loadPreference } from '../api/preferences.ts';
+import { createCardToken } from '../api/card-tokens.ts';
 import { createPayment } from '../api/payments.ts';
+import { TEST_CARDHOLDERS, TEST_CARDS } from '../generated/tables.ts';
 import type { ServiceContext } from '../api/context.ts';
-import { formatDateTime } from '../serialize/datetime.ts';
 import { escapeHtml } from './html.ts';
 
-const CARD_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const CARD_METHOD = 'master';
-/** Mercado Pago's Mastercard test card. */
-const TEST_CARD = { bin: '503175', lastFour: '0604', month: 11, year: 2030 };
+/** The documented Mastercard test card; the generated table is the single source. */
+const TEST_CARD = TEST_CARDS[0];
 const FALLBACK_EMAIL = 'test_user@testuser.com';
 
 type Outcome = 'pix' | 'card_approved' | 'card_rejected' | 'pending';
@@ -34,14 +33,9 @@ const OPTIONS: readonly Option[] = [
  * Rejection reasons are chosen through the cardholder name, the same lever the real
  * sandbox uses. https://www.mercadopago.com.br/developers/en/docs/your-integrations/test/cards
  */
-const REASONS: readonly { code: string; label: string }[] = [
-  { code: 'OTHE', label: 'General error' },
-  { code: 'FUND', label: 'Insufficient funds' },
-  { code: 'SECU', label: 'Invalid security code' },
-  { code: 'EXPI', label: 'Expired card' },
-  { code: 'FORM', label: 'Invalid card data' },
-  { code: 'CALL', label: 'Call to authorize' },
-];
+const REASONS: readonly { code: string; label: string }[] = TEST_CARDHOLDERS.filter(
+  (holder) => holder.code !== 'APRO' && holder.code !== 'CONT' && holder.code !== 'TEST',
+).map((holder) => ({ code: holder.code, label: holder.scenario }));
 
 const isOutcome = (value: string): value is Outcome =>
   OPTIONS.some((option) => option.outcome === value);
@@ -156,34 +150,24 @@ export function checkoutPage(
   });
 }
 
-function mintCardToken(context: ServiceContext, holderName: string): string {
+/**
+ * The operator picks an outcome, not a card, so the page tokenises a documented test
+ * card itself and carries the choice in the cardholder name, which is the lever the real
+ * sandbox uses. https://www.mercadopago.com.br/developers/en/docs/your-integrations/test/cards
+ */
+function mintCardToken(context: ServiceContext, holderName: string): Result<string, ErrorBody> {
   const now = context.clock.now();
-  const id = context.ids.uuid().replaceAll('-', '');
-  context.store.documents.insert({
-    kind: 'card_token',
-    id,
-    sequence: context.store.nextSequence('card_token'),
-    status: 'active',
-    externalReference: null,
-    lookup: null,
-    createdAt: now,
-    updatedAt: now,
-    expiresAt: now + CARD_TOKEN_TTL_MS,
-    doc: {
-      id,
-      first_six_digits: TEST_CARD.bin,
-      last_four_digits: TEST_CARD.lastFour,
-      expiration_month: TEST_CARD.month,
-      expiration_year: TEST_CARD.year,
-      date_created: formatDateTime(now),
-      date_due: formatDateTime(now + CARD_TOKEN_TTL_MS),
-      luhn_validation: true,
-      status: 'active',
-      card_id: null,
-      cardholder: { name: holderName },
-    },
+  const token = createCardToken(context, {
+    card_number: TEST_CARD.number,
+    security_code: TEST_CARD.securityCode,
+    expiration_month: Number(TEST_CARD.expiration.split('/')[0]),
+    // Kept ahead of the clock so the sandbox never rejects its own card as expired.
+    expiration_year: new Date(now).getUTCFullYear() + 5,
+    cardholder: { name: holderName },
   });
-  return id;
+  if (!token.ok) return token;
+  const id = isJsonObject(token.value.body) ? readString(token.value.body, 'id') : null;
+  return id === null ? err(badRequest('card tokenisation failed')) : ok(id);
 }
 
 function paymentBody(
@@ -192,7 +176,7 @@ function paymentBody(
   outcome: Outcome,
   reason: string,
   email: string,
-): JsonObject {
+): Result<JsonObject, ErrorBody> {
   const base: JsonObject = {
     transaction_amount: toDecimal(view.dueMinor),
     description: readString(view.items[0] ?? {}, 'title') ?? 'payground checkout',
@@ -202,15 +186,13 @@ function paymentBody(
     ...(view.notificationUrl === null ? {} : { notification_url: view.notificationUrl }),
   };
 
-  if (outcome === 'pix') return { ...base, payment_method_id: 'pix' };
-  if (outcome === 'pending') return { ...base, payment_method_id: 'bolbradesco' };
+  if (outcome === 'pix') return ok({ ...base, payment_method_id: 'pix' });
+  if (outcome === 'pending') return ok({ ...base, payment_method_id: 'bolbradesco' });
 
-  return {
-    ...base,
-    payment_method_id: CARD_METHOD,
-    installments: 1,
-    token: mintCardToken(context, outcome === 'card_approved' ? 'APRO' : reason),
-  };
+  const token = mintCardToken(context, outcome === 'card_approved' ? 'APRO' : reason);
+  if (!token.ok) return token;
+  // The token carries the brand, so payment_method_id is left to the payments module.
+  return ok({ ...base, installments: 1, token: token.value });
 }
 
 /**
@@ -307,7 +289,10 @@ export function checkoutSubmit(
   const email =
     submitted !== null && submitted.includes('@') ? submitted : (view.payerEmail ?? FALLBACK_EMAIL);
 
-  const created = createPayment(context, paymentBody(context, view, outcome, reason, email));
+  const request = paymentBody(context, view, outcome, reason, email);
+  if (!request.ok) return request;
+
+  const created = createPayment(context, request.value);
   if (!created.ok) return created;
 
   const body = created.value.body;

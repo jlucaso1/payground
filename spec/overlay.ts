@@ -180,6 +180,13 @@ export const DIVERGENCES: readonly Divergence[] = [
       'https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix',
   },
   {
+    area: 'Merchant orders',
+    summary: 'Merchant orders are read-only and derived from preferences',
+    detail:
+      'The real API exposes POST /merchant_orders and PUT /merchant_orders/{id}. payground creates a merchant order when a Checkout Pro preference first receives a payment and keeps its totals and order_status in step, but does not accept direct creation or update.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post',
+  },
+  {
     area: 'Node SDK',
     summary: 'Per-call requestOptions leak into the shared client configuration',
     detail:

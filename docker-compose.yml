@@ -1,0 +1,18 @@
+services:
+  payground:
+    build: .
+    image: payground:local
+    ports:
+      - "8080:8080"
+    environment:
+      PAYGROUND_DB: /data/payground.sqlite
+      PAYGROUND_HOST: 0.0.0.0
+      PAYGROUND_PORT: "8080"
+      # Public origin used in Pix payloads and ticket URLs.
+      PAYGROUND_BASE_URL: http://127.0.0.1:8080
+    volumes:
+      - payground-data:/data
+    restart: unless-stopped
+
+volumes:
+  payground-data:

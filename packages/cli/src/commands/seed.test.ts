@@ -58,6 +58,19 @@ describe('seed', () => {
     expect(payments(storage)).toHaveLength(12);
   });
 
+  test('refuses to seed the same data twice', async () => {
+    const { env, err } = testEnv();
+    expect(await main(['seed'], env)).toBe(0);
+    expect(await main(['seed'], env)).toBe(1);
+    expect(err[0]).toContain('already holds the payments of --seed 1');
+  });
+
+  test('fails when the requested sandbox does not exist', async () => {
+    const { env, err } = testEnv();
+    expect(await main(['seed', '--sandbox', 'nope'], env)).toBe(1);
+    expect(err[0]).toBe('sandbox not found: nope');
+  });
+
   test('rejects a non numeric count', async () => {
     const { env, err } = testEnv();
     expect(await main(['seed', '--payments', 'abc'], env)).toBe(2);

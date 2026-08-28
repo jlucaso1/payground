@@ -28,7 +28,8 @@ describe('reset', () => {
     await main(['sandbox', 'create', '--name', 'other'], env);
     const second = storage.sandboxes.list()[1];
     if (second === undefined) throw new Error('expected two sandboxes');
-    await main(['seed', '--db', ':memory:'], env);
+    await main(['seed', '--sandbox', second.id, '--payments', '3'], env);
+    expect(count(storage, 1)).toBe(3);
 
     expect(await main(['reset', '--sandbox', second.id], env)).toBe(0);
     expect(count(storage, 0)).toBe(12);

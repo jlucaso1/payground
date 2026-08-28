@@ -30,6 +30,12 @@ describe('start', () => {
     expect(await main(['start'], env)).toBe(2);
   });
 
+  test('fails when the requested dashboard directory holds no assets', async () => {
+    const { env, err } = testEnv();
+    expect(await main(['start', '--port', '0', '--dashboard', '/tmp/payground-no-dashboard'], env)).toBe(1);
+    expect(err[0]).toContain('no dashboard assets in /tmp/payground-no-dashboard');
+  });
+
   test('rejects an invalid port', async () => {
     const { env, err } = testEnv();
     expect(await main(['start', '--port', '70000'], env)).toBe(2);

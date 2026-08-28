@@ -642,7 +642,13 @@ export function createOrder(context: ServiceContext, body: unknown): Result<Rend
     payments.push(parsed.value);
   }
 
-  if (total(payments.map((payment) => payment.amount)) !== totalAmount) {
+  const committed = total(payments.map((payment) => payment.amount));
+  if (committed > totalAmount) {
+    return err(invalid(2034, 'the transaction amounts must not exceed total_amount'));
+  }
+  // A manual order may be built up transaction by transaction; an automatic one settles on
+  // creation, so it has to be funded in full straight away.
+  if (committed !== totalAmount && (request.processing_mode ?? 'automatic') === 'automatic') {
     return err(invalid(2034, 'the sum of the transaction amounts must equal total_amount'));
   }
 
@@ -782,16 +788,19 @@ export function processOrder(context: ServiceContext, id: string, body: unknown)
   if (!record.payments.some((payment) => payment.status === 'created')) {
     return err(conflict('the order has already been processed'));
   }
+  if (total(record.payments.map((payment) => payment.amount)) !== record.totalAmount) {
+    return err(conflict('the transaction amounts must add up to total_amount'));
+  }
 
   settle(context, record, context.clock.now());
   return ok({ status: 200, body: commit(context, record, 'order.updated') });
 }
 
 /** `{ transactions: { payments: [{ id, amount }] } }`, the shape the capture endpoint takes. */
-function requestedAmounts(body: unknown, field: 'transactions'): Result<Map<string, string>, ErrorBody> {
+function requestedAmounts(body: unknown): Result<Map<string, string>, ErrorBody> {
   const parsed = emptyBody(body);
   if (!parsed.ok) return parsed;
-  const transactions = asObject(parsed.value[field]);
+  const transactions = asObject(parsed.value['transactions']);
   const payments = transactions === null ? null : asArray(transactions['payments']);
   const out = new Map<string, string>();
   if (payments === null) return ok(out);
@@ -802,14 +811,13 @@ function requestedAmounts(body: unknown, field: 'transactions'): Result<Map<stri
     const id = asString(payment['id']);
     const amount = asString(payment['amount']);
     if (id === null) return err(invalid(2034, 'transactions.payments[].id is required'));
-    if (amount !== null) out.set(id, amount);
-    else out.set(id, '');
+    out.set(id, amount ?? '');
   }
   return ok(out);
 }
 
 export function captureOrder(context: ServiceContext, id: string, body: unknown): Result<Rendered, ErrorBody> {
-  const requested = requestedAmounts(body, 'transactions');
+  const requested = requestedAmounts(body);
   if (!requested.ok) return requested;
   const located = locate(context, id);
   if (!located.ok) return located;

@@ -63,6 +63,7 @@ export function createApp(options: AppOptions = {}): App {
     clock,
     ids,
     baseUrl: options.baseUrl ?? 'http://127.0.0.1:8080',
+    random,
     ...(options.events === undefined ? {} : { events: options.events }),
   };
 

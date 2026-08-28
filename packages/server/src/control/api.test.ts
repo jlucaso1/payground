@@ -206,3 +206,40 @@ describe('webhooks', () => {
     }
   });
 });
+
+describe('fault injection reaches the emulated API', () => {
+  const setFaults = (app: ReturnType<typeof start>, profile: Record<string, unknown>) =>
+    app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}/faults`, profile);
+
+  test('unavailable turns every emulated call into a 503', async () => {
+    const app = start();
+    await setFaults(app, { unavailable: true });
+    const response = await app.api('POST', '/v1/payments', pix);
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: 'service_unavailable', status: 503 });
+
+    await setFaults(app, { unavailable: false });
+    expect((await app.api('POST', '/v1/payments', pix)).status).toBe(201);
+  });
+
+  test('a full error rate makes every emulated call fail', async () => {
+    const app = start();
+    await setFaults(app, { errorRate: 1 });
+    const response = await app.api('POST', '/v1/payments', pix);
+    expect(response.status).toBe(500);
+  });
+
+  test('artificial latency delays the response', async () => {
+    const app = start();
+    await setFaults(app, { latencyMs: 120 });
+    const before = Date.now();
+    await app.api('GET', '/v1/payments/search');
+    expect(Date.now() - before).toBeGreaterThanOrEqual(100);
+  });
+
+  test('the control API keeps working while the emulated API is down', async () => {
+    const app = start();
+    await setFaults(app, { unavailable: true });
+    expect((await app.call('GET', '/_payground/sandboxes')).status).toBe(200);
+  });
+});

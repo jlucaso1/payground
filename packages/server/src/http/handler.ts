@@ -1,4 +1,4 @@
-import type { Clock, IdGenerator, Sandbox, SandboxRegistry } from '@payground/core';
+import type { Clock, IdGenerator, RandomSource, Sandbox, SandboxRegistry } from '@payground/core';
 import type { ServiceContext } from '@payground/mercadopago/api/context.ts';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { enqueue } from '../webhook/enqueue.ts';
@@ -12,6 +12,7 @@ export interface AppRuntime {
   clock: Clock;
   ids: IdGenerator;
   baseUrl: string;
+  random: RandomSource;
   /** Set for tests that want to observe notices instead of queueing deliveries. */
   events?: EventSink;
 }
@@ -96,6 +97,20 @@ export function endpoint(runtime: AppRuntime, handler: Endpoint, options: Endpoi
     }
 
     const service = contextFor(runtime, principal.value.sandbox);
+
+    const faults = service.store.faults.get();
+    if (faults.unavailable) {
+      return errorResponse({
+        message: 'service unavailable',
+        error: 'service_unavailable',
+        status: 503,
+        cause: [{ code: 5001, description: 'injected outage' }],
+      });
+    }
+    if (faults.errorRate > 0 && runtime.random.int(10_000) < faults.errorRate * 10_000) {
+      return errorResponse(serverError('injected failure'));
+    }
+    if (faults.latencyMs > 0) await Bun.sleep(faults.latencyMs);
 
     const key = request.headers.get('x-idempotency-key');
     const print = fingerprint(request.method, url.pathname, rawBody);

@@ -278,6 +278,13 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post',
   },
   {
+    area: 'Wallet Connect',
+    summary: 'Agreements are pending until the payer authorizes, and the discounts endpoint also registers campaigns',
+    detail:
+      'The spec types the agreement status as active/cancelled/expired and gives no way to create the coupon a discount is quoted against. payground adds a `pending` status for an agreement nobody has authorized yet and reports a revoked one as `revoked`; POST /v2/wallet_connect/discounts registers a campaign when `discount_amount` or `discount_percentage` is present and otherwise quotes the documented `{ coupon, amount }` promise. `agreement_uri` points at the payground approval page, which authorizes the agreement and redirects to `return_uri` with the `code` that POST /payer_token exchanges. `redirect_url` is accepted as an alias of `return_uri`. The discounts and coupons endpoints are authenticated only with `x-payer-token` in the spec, but also require the sandbox access token here, because a payground token carries the sandbox the data lives in.',
+    source: 'https://github.com/mercadopago/openapi — paths./v2/wallet_connect/*',
+  },
+  {
     area: 'Node SDK',
     summary: 'Per-call requestOptions leak into the shared client configuration',
     detail:

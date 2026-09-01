@@ -58,6 +58,22 @@ Added: `id`, `user_id`, `name`, `store_id`, `external_id`, `external_store_id`, 
 
 Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
 
+### `ReportTask`
+
+The task response carries the generated file name, which spec3.json omits; without it a client cannot build the download URL itself.
+
+Added: `file_name`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report/post
+
+### `ReportEntry`
+
+GET /v1/account/release_report/list reports the schedule that produces each file; spec3.json reuses the plain report entry and drops the schedule.
+
+Added: `frequency`, `enabled`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report_list/get
+
 ## Behavioural divergences
 
 ### Payments — Payment `id` is a number on the resource and a string in search results

@@ -652,6 +652,7 @@ export interface ReportTask {
   created_at?: string;
   updated_at?: string;
   download_url?: string | null;
+  file_name?: string;
 }
 
 /** A generated report file entry */
@@ -663,6 +664,11 @@ export interface ReportEntry {
   begin_date?: string;
   end_date?: string;
   file_name?: string;
+  frequency?: {
+    hour?: number;
+    type?: "daily" | "weekly" | "monthly";
+  };
+  enabled?: boolean;
 }
 
 export interface ReportListResult {

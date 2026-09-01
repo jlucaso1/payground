@@ -1,32 +1,45 @@
 import { Database } from 'bun:sqlite';
 import type { SandboxId, SandboxStore } from '@payground/core';
+import { SqliteAuditLog } from './audit.ts';
 import { SqliteDocumentRepository } from './documents.ts';
 import { SqliteIdempotencyStore } from './idempotency.ts';
 import { MIGRATIONS } from './migrations.ts';
 import { SqlitePaymentRepository } from './payments.ts';
 import { SqliteRefundRepository } from './refunds.ts';
 import { SqliteSandboxRegistry } from './registry.ts';
+import { SqliteApiRequestLog } from './requests.ts';
 import { SqliteDeliveryQueue, SqliteFaultStore, SqliteWebhookRepository } from './webhooks.ts';
 
 export interface StorageOptions {
   /** File path, or `:memory:` (the default). */
   path?: string;
+  /** How long a writer waits for the lock before failing. Only meaningful on a file. */
+  busyTimeoutMs?: number;
 }
 
 export class Storage {
   readonly sandboxes: SqliteSandboxRegistry;
   readonly queue: SqliteDeliveryQueue;
+  readonly audit: SqliteAuditLog;
+  readonly requests: SqliteApiRequestLog;
 
   private constructor(private readonly db: Database) {
     this.sandboxes = new SqliteSandboxRegistry(db);
     this.queue = new SqliteDeliveryQueue(db);
+    this.audit = new SqliteAuditLog(db);
+    this.requests = new SqliteApiRequestLog(db);
   }
 
   static open(options: StorageOptions = {}): Storage {
     const path = options.path ?? ':memory:';
     const db = new Database(path, { create: true, strict: false });
     db.exec('pragma foreign_keys = on');
-    if (path !== ':memory:') db.exec('pragma journal_mode = wal');
+    if (path !== ':memory:') {
+      db.exec('pragma journal_mode = wal');
+      // Several processes may share the file: a CLI command next to a running server.
+      db.exec(`pragma busy_timeout = ${Math.max(options.busyTimeoutMs ?? 5_000, 0)}`);
+      db.exec('pragma synchronous = normal');
+    }
     const storage = new Storage(db);
     storage.migrate();
     return storage;
@@ -39,12 +52,17 @@ export class Storage {
     );
     for (const migration of MIGRATIONS) {
       if (applied.has(migration.version)) continue;
+      // Immediate takes the write lock up front, so two processes cannot both migrate.
       this.db.transaction(() => {
+        const done = this.db
+          .query<{ version: number }, [number]>('select version from schema_migrations where version = ?')
+          .get(migration.version);
+        if (done !== null) return;
         this.db.exec(migration.sql);
         this.db
           .query('insert into schema_migrations (version, name, applied_at) values (?, ?, ?)')
           .run(migration.version, migration.name, Date.now());
-      })();
+      }).immediate();
     }
   }
 
@@ -83,3 +101,5 @@ export class Storage {
 }
 
 export { MIGRATIONS } from './migrations.ts';
+export { SqliteAuditLog } from './audit.ts';
+export { SqliteApiRequestLog } from './requests.ts';

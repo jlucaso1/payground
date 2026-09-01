@@ -96,10 +96,27 @@ export type DocumentKind =
   | 'merchant_order'
   | 'customer'
   | 'customer_card'
+  | 'customer_address'
   | 'preapproval_plan'
   | 'preapproval'
   | 'authorized_payment'
-  | 'order';
+  | 'order'
+  | 'advanced_payment'
+  | 'chargeback'
+  | 'store'
+  | 'pos'
+  | 'terminal'
+  | 'point_intent'
+  | 'qr_order'
+  | 'qr_config'
+  | 'wallet_agreement'
+  | 'payout'
+  | 'transaction_intent'
+  | 'claim'
+  | 'claim_message'
+  | 'report'
+  | 'report_config'
+  | 'report_task';
 
 export interface StoredDocument {
   readonly kind: DocumentKind;
@@ -199,3 +216,103 @@ export interface FaultStore {
 export interface DeliveryQueue {
   due(at: number, limit: number): readonly { sandbox: SandboxId; delivery: WebhookDelivery }[];
 }
+
+/** Counters and latency samples. Aggregation lives in the adapter, not the domain. */
+export interface MetricsSink {
+  count(name: string, labels: Readonly<Record<string, string>>, delta?: number): void;
+  observe(name: string, labels: Readonly<Record<string, string>>, value: number): void;
+}
+
+export const noopMetrics: MetricsSink = { count: () => undefined, observe: () => undefined };
+
+export type AuditActor =
+  | { readonly kind: 'admin' }
+  | { readonly kind: 'sandbox'; readonly sandbox: SandboxId }
+  | { readonly kind: 'system' };
+
+export interface AuditEntry {
+  readonly id: string;
+  readonly at: number;
+  readonly actor: AuditActor;
+  readonly action: string;
+  readonly target: string;
+  readonly sandbox: SandboxId | null;
+  readonly detail: JsonObject;
+}
+
+export interface AuditQuery {
+  readonly sandbox?: SandboxId;
+  readonly action?: string;
+  readonly from?: number;
+  readonly to?: number;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+export interface AuditLog {
+  record(entry: AuditEntry): void;
+  search(query: AuditQuery): Page<AuditEntry>;
+  purgeBefore(cutoff: number): number;
+}
+
+export const noopAudit: AuditLog = {
+  record: () => undefined,
+  search: () => ({ total: 0, limit: 0, offset: 0, results: [] }),
+  purgeBefore: () => 0,
+};
+
+export interface ApiRequestEntry {
+  readonly id: string;
+  readonly at: number;
+  readonly sandbox: SandboxId | null;
+  readonly method: string;
+  readonly route: string;
+  readonly path: string;
+  readonly status: number;
+  readonly durationMs: number;
+  readonly requestBody: string | null;
+  readonly responseBody: string | null;
+  readonly idempotencyKey: string | null;
+  readonly userAgent: string | null;
+}
+
+export interface ApiRequestQuery {
+  readonly sandbox?: SandboxId;
+  readonly route?: string;
+  readonly method?: string;
+  readonly status?: number;
+  readonly minStatus?: number;
+  readonly from?: number;
+  readonly to?: number;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+/** Every call the emulator answered, so an integrator can replay and diff it later. */
+export interface ApiRequestLog {
+  record(entry: ApiRequestEntry): void;
+  get(id: string): ApiRequestEntry | null;
+  search(query: ApiRequestQuery): Page<ApiRequestEntry>;
+  purgeBefore(cutoff: number): number;
+}
+
+export const noopRequestLog: ApiRequestLog = {
+  record: () => undefined,
+  get: () => null,
+  search: () => ({ total: 0, limit: 0, offset: 0, results: [] }),
+  purgeBefore: () => 0,
+};
+
+export interface RateLimitDecision {
+  readonly allowed: boolean;
+  readonly remaining: number;
+  readonly retryAfterMs: number;
+}
+
+export interface RateLimiter {
+  take(key: string, now: number): RateLimitDecision;
+}
+
+export const noopRateLimiter: RateLimiter = {
+  take: () => ({ allowed: true, remaining: Number.MAX_SAFE_INTEGER, retryAfterMs: 0 }),
+};

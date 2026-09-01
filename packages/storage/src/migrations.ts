@@ -174,4 +174,50 @@ create table fault_profiles (
 ) strict;
 `,
   },
+  {
+    version: 3,
+    name: 'audit-history-leases',
+    sql: `
+create table audit_log (
+  id text primary key,
+  at integer not null,
+  actor_kind text not null,
+  actor_sandbox text,
+  action text not null,
+  target text not null,
+  sandbox_id text,
+  detail text not null
+) strict;
+
+create index audit_by_time on audit_log (at desc);
+create index audit_by_sandbox on audit_log (sandbox_id, at desc);
+create index audit_by_action on audit_log (action, at desc);
+
+create table api_requests (
+  id text primary key,
+  at integer not null,
+  sandbox_id text,
+  method text not null,
+  route text not null,
+  path text not null,
+  status integer not null,
+  duration_ms integer not null,
+  request_body text,
+  response_body text,
+  idempotency_key text,
+  user_agent text
+) strict;
+
+create index api_requests_by_time on api_requests (at desc);
+create index api_requests_by_sandbox on api_requests (sandbox_id, at desc);
+create index api_requests_by_route on api_requests (route, at desc);
+create index api_requests_by_status on api_requests (status, at desc);
+
+-- Lease so two processes sharing a database cannot deliver the same webhook twice.
+alter table webhook_deliveries add column leased_until integer;
+alter table webhook_deliveries add column leased_by text;
+
+create index webhook_lease on webhook_deliveries (status, next_attempt_at, leased_until);
+`,
+  },
 ];

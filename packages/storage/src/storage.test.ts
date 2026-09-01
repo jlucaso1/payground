@@ -217,3 +217,68 @@ describe('idempotency store', () => {
     expect(storage.forSandbox(sandboxId('b')).idempotency.get('same')?.body).toBe('{"b":2}');
   });
 });
+
+describe('audit log', () => {
+  test('records, filters and purges', () => {
+    const { storage } = fresh('a');
+    const entry = (id: string, at: number, action: string, sandbox: string | null) => ({
+      id,
+      at,
+      actor: sandbox === null ? ({ kind: 'admin' } as const) : ({ kind: 'sandbox', sandbox: sandboxId(sandbox) } as const),
+      action,
+      target: `payment:${id}`,
+      sandbox: sandbox === null ? null : sandboxId(sandbox),
+      detail: { note: id },
+    });
+
+    storage.audit.record(entry('1', 1_000, 'sandbox.created', null));
+    storage.audit.record(entry('2', 2_000, 'payment.settled', 'a'));
+    storage.audit.record(entry('3', 3_000, 'payment.settled', 'a'));
+
+    expect(storage.audit.search({}).total).toBe(3);
+    expect(storage.audit.search({}).results.map((e) => e.id)).toEqual(['3', '2', '1']);
+    expect(storage.audit.search({ action: 'payment.settled' }).total).toBe(2);
+    expect(storage.audit.search({ sandbox: sandboxId('a') }).total).toBe(2);
+    expect(storage.audit.search({ from: 2_000, to: 2_999 }).results.map((e) => e.id)).toEqual(['2']);
+    expect(storage.audit.search({ limit: 1 }).results).toHaveLength(1);
+    expect(storage.audit.search({})?.results[0]?.actor).toEqual({ kind: 'sandbox', sandbox: sandboxId('a') });
+    expect(storage.audit.search({})?.results[2]?.actor).toEqual({ kind: 'admin' });
+
+    expect(storage.audit.purgeBefore(2_500)).toBe(2);
+    expect(storage.audit.search({}).total).toBe(1);
+  });
+});
+
+describe('api request log', () => {
+  const entry = (id: string, at: number, status: number, sandbox: string | null) => ({
+    id,
+    at,
+    sandbox: sandbox === null ? null : sandboxId(sandbox),
+    method: 'POST',
+    route: '/v1/payments',
+    path: '/v1/payments',
+    status,
+    durationMs: 12,
+    requestBody: '{"a":1}',
+    responseBody: '{"b":2}',
+    idempotencyKey: 'k',
+    userAgent: 'sdk',
+  });
+
+  test('round trips and filters by status band', () => {
+    const { storage } = fresh('a');
+    storage.requests.record(entry('1', 1_000, 201, 'a'));
+    storage.requests.record(entry('2', 2_000, 400, 'a'));
+    storage.requests.record(entry('3', 3_000, 500, null));
+
+    expect(storage.requests.get('1')).toEqual(entry('1', 1_000, 201, 'a'));
+    expect(storage.requests.get('missing')).toBeNull();
+    expect(storage.requests.search({ minStatus: 400 }).total).toBe(2);
+    expect(storage.requests.search({ status: 500 }).results.map((e) => e.id)).toEqual(['3']);
+    expect(storage.requests.search({ sandbox: sandboxId('a') }).total).toBe(2);
+    expect(storage.requests.search({ route: '/v1/payments' }).total).toBe(3);
+    expect(storage.requests.search({ method: 'GET' }).total).toBe(0);
+    expect(storage.requests.purgeBefore(2_500)).toBe(2);
+    expect(storage.requests.search({}).total).toBe(1);
+  });
+});

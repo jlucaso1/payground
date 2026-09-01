@@ -232,3 +232,52 @@ describe('failure paths', () => {
     expect(results.length).toBe(12);
   });
 });
+
+describe('admin token', () => {
+  const spy = () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchLike = async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    return { calls, fetchLike };
+  };
+
+  test('is sent as a bearer header when present', async () => {
+    const { calls, fetchLike } = spy();
+    const client = createApiClient({ fetch: fetchLike, token: () => 'secret' });
+    await client.listSandboxes();
+    expect((calls[0]?.init?.headers as Record<string, string>)['authorization']).toBe('Bearer secret');
+  });
+
+  test('is omitted when absent or empty', async () => {
+    const { calls, fetchLike } = spy();
+    await createApiClient({ fetch: fetchLike, token: () => null }).listSandboxes();
+    await createApiClient({ fetch: fetchLike, token: () => '' }).listSandboxes();
+    await createApiClient({ fetch: fetchLike }).listSandboxes();
+    for (const call of calls) {
+      expect((call.init?.headers as Record<string, string>)['authorization']).toBeUndefined();
+    }
+  });
+
+  test('is read on every call, so a token entered later is picked up', async () => {
+    const { calls, fetchLike } = spy();
+    let current: string | null = null;
+    const client = createApiClient({ fetch: fetchLike, token: () => current });
+    await client.listSandboxes();
+    current = 'later';
+    await client.listSandboxes();
+
+    expect((calls[0]?.init?.headers as Record<string, string>)['authorization']).toBeUndefined();
+    expect((calls[1]?.init?.headers as Record<string, string>)['authorization']).toBe('Bearer later');
+  });
+
+  test('a 401 is reported as unauthorized so the UI can ask for a token', async () => {
+    const client = createApiClient({
+      fetch: async () => new Response('{"error":"unauthorized"}', { status: 401 }),
+    });
+    const result = await client.listSandboxes();
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('unauthorized');
+  });
+});

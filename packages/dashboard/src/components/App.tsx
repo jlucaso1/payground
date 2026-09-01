@@ -4,10 +4,14 @@ import { useAsync } from '../hooks/useAsync.ts';
 import { useRoute } from '../hooks/useRoute.ts';
 import { formatDuration } from '../lib/format.ts';
 import { routeSandboxId, routeToHash, type Route } from '../lib/router.ts';
+import { AdminScreen } from './AdminScreen.tsx';
 import { FaultsScreen } from './FaultsScreen.tsx';
+import { HistoryScreen } from './HistoryScreen.tsx';
+import { MetricsScreen } from './MetricsScreen.tsx';
 import { PaymentDetailScreen } from './PaymentDetailScreen.tsx';
 import { PaymentsScreen } from './PaymentsScreen.tsx';
 import { SandboxesScreen } from './SandboxesScreen.tsx';
+import { ResourcesScreen } from './ResourcesScreen.tsx';
 import { WebhooksScreen } from './WebhooksScreen.tsx';
 
 function Header(): ReactNode {
@@ -49,6 +53,14 @@ function Screen({ route, navigate }: { route: Route; navigate: (next: Route) => 
       return <WebhooksScreen sandboxId={route.sandboxId} />;
     case 'faults':
       return <FaultsScreen sandboxId={route.sandboxId} />;
+    case 'resources':
+      return <ResourcesScreen sandboxId={route.sandboxId} />;
+    case 'metrics':
+      return <MetricsScreen />;
+    case 'history':
+      return <HistoryScreen />;
+    case 'admin':
+      return <AdminScreen />;
     case 'notFound':
       return <p className="text-sm text-neutral-600">Unknown route: {route.hash}</p>;
   }
@@ -67,6 +79,9 @@ export function App(): ReactNode {
           </a>
           <nav className="flex items-center gap-1">
             <NavLink route={{ name: 'sandboxes' }} current={route} label="Sandboxes" />
+            <NavLink route={{ name: 'metrics' }} current={route} label="Metrics" />
+            <NavLink route={{ name: 'history' }} current={route} label="History" />
+            <NavLink route={{ name: 'admin' }} current={route} label="Admin" />
             {sandboxId === null ? null : (
               <>
                 <NavLink
@@ -80,6 +95,7 @@ export function App(): ReactNode {
                   label="Webhooks"
                 />
                 <NavLink route={{ name: 'faults', sandboxId }} current={route} label="Faults" />
+                <NavLink route={{ name: 'resources', sandboxId }} current={route} label="Resources" />
               </>
             )}
           </nav>

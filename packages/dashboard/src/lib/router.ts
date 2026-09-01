@@ -4,6 +4,10 @@ export type Route =
   | { name: 'payment'; sandboxId: string; paymentId: string }
   | { name: 'webhooks'; sandboxId: string }
   | { name: 'faults'; sandboxId: string }
+  | { name: 'resources'; sandboxId: string }
+  | { name: 'metrics' }
+  | { name: 'history' }
+  | { name: 'admin' }
   | { name: 'notFound'; hash: string };
 
 export function parseRoute(hash: string): Route {
@@ -15,6 +19,9 @@ export function parseRoute(hash: string): Route {
 
   const [head, ...rest] = segments;
   if (head === 'sandboxes' && rest.length === 0) return { name: 'sandboxes' };
+  if (head === 'metrics' && rest.length === 0) return { name: 'metrics' };
+  if (head === 'history' && rest.length === 0) return { name: 'history' };
+  if (head === 'admin' && rest.length === 0) return { name: 'admin' };
 
   if (head === 's' && rest.length >= 2) {
     const sandboxId = decodeURIComponent(rest[0] ?? '');
@@ -26,6 +33,7 @@ export function parseRoute(hash: string): Route {
       }
       if (section === 'webhooks' && rest.length === 2) return { name: 'webhooks', sandboxId };
       if (section === 'faults' && rest.length === 2) return { name: 'faults', sandboxId };
+      if (section === 'resources' && rest.length === 2) return { name: 'resources', sandboxId };
     }
   }
 
@@ -45,6 +53,14 @@ export function routeToHash(route: Route): string {
       return `#/s/${enc(route.sandboxId)}/webhooks`;
     case 'faults':
       return `#/s/${enc(route.sandboxId)}/faults`;
+    case 'resources':
+      return `#/s/${enc(route.sandboxId)}/resources`;
+    case 'metrics':
+      return '#/metrics';
+    case 'history':
+      return '#/history';
+    case 'admin':
+      return '#/admin';
     case 'notFound':
       return `#${route.hash}`;
   }
@@ -56,6 +72,7 @@ export function routeSandboxId(route: Route): string | null {
     case 'payment':
     case 'webhooks':
     case 'faults':
+    case 'resources':
       return route.sandboxId;
     default:
       return null;

@@ -12,7 +12,7 @@ import type {
 } from './types.ts';
 
 export interface ApiError {
-  kind: 'http' | 'network' | 'parse';
+  kind: 'http' | 'network' | 'parse' | 'unauthorized';
   message: string;
   status: number | null;
 }
@@ -24,6 +24,8 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 export interface ApiClientOptions {
   baseUrl?: string;
   fetch?: FetchLike;
+  /** Read on every call so a token entered after construction takes effect immediately. */
+  token?: () => string | null;
 }
 
 export const API_PREFIX = '/_payground';
@@ -68,6 +70,7 @@ export interface ApiClient {
 export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const baseUrl = (options.baseUrl ?? '').replace(/\/$/, '');
   const doFetch: FetchLike = options.fetch ?? ((input, init) => fetch(input, init));
+  const token = options.token ?? (() => null);
 
   async function request<T>(
     method: string,
@@ -77,12 +80,14 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     const url = `${baseUrl}${API_PREFIX}${path}`;
     let response: Response;
     try {
+      const admin = token();
+      const headers: Record<string, string> = { accept: 'application/json' };
+      if (body !== undefined) headers['content-type'] = 'application/json';
+      if (admin !== null && admin !== '') headers['authorization'] = `Bearer ${admin}`;
+
       response = await doFetch(url, {
         method,
-        headers:
-          body === undefined
-            ? { accept: 'application/json' }
-            : { accept: 'application/json', 'content-type': 'application/json' },
+        headers,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch (cause) {
@@ -95,7 +100,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       return {
         ok: false,
         error: {
-          kind: 'http',
+          kind: response.status === 401 ? 'unauthorized' : 'http',
           message: text === '' ? `HTTP ${response.status}` : text,
           status: response.status,
         },

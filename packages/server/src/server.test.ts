@@ -3,6 +3,10 @@ import { ManualClock } from '@payground/core/testing.ts';
 import { Storage } from '@payground/storage';
 import { createServer } from './server.ts';
 
+// Read from disk rather than importing, so a version bump in the manifest alone is
+// enough to fail this test if the served version stops tracking it.
+const packageVersion = (await Bun.file(`${import.meta.dir}/../../cli/package.json`).json()).version as string;
+
 async function withServer<T>(fn: (url: string, clock: ManualClock) => Promise<T>): Promise<T> {
   const clock = new ManualClock(1_000);
   const server = createServer({ port: 0, clock });
@@ -14,12 +18,12 @@ async function withServer<T>(fn: (url: string, clock: ManualClock) => Promise<T>
 }
 
 describe('server', () => {
-  test('health reports version and uptime from the injected clock', async () => {
+  test('health reports the package version and uptime from the injected clock', async () => {
     await withServer(async (url, clock) => {
       clock.advance(2_500);
       const res = await fetch(`${url}/_payground/health`);
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ status: 'ok', version: '0.1.0', uptime_ms: 2_500 });
+      expect(await res.json()).toEqual({ status: 'ok', version: packageVersion, uptime_ms: 2_500 });
     });
   });
 

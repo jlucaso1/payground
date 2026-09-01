@@ -1,7 +1,16 @@
 {
   "name": "payground-workspace",
   "private": true,
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jlucaso1/payground.git"
+  },
+  "homepage": "https://github.com/jlucaso1/payground#readme",
+  "bugs": {
+    "url": "https://github.com/jlucaso1/payground/issues"
+  },
   "workspaces": [
     "packages/*",
     "tools/*",
@@ -17,6 +26,9 @@
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
   },
   "scripts": {
     "build": "bun run build:dashboard && bun run build:cli",

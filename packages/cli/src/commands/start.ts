@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, createServer, createTokenBucketLimiter, type ServerOptions } from '@payground/server';
 import type { RateLimiter } from '@payground/core';
+import { VERSION, createServer, createTokenBucketLimiter, type ServerOptions } from '@payground/server';
+import { type Retention, startRetention } from '@payground/server/maintenance.ts';
 import { FAILURE, OK, USAGE_ERROR, flag, integer, parseOptions, text, type Values } from '../args.ts';
-import { DEFAULT_DB, type Env } from '../env.ts';
+import { DEFAULT_DB, type Env, MEMORY } from '../env.ts';
 
 export const START_USAGE = `Usage: payground start [options]
 
@@ -22,6 +23,9 @@ export const START_USAGE = `Usage: payground start [options]
   --rate-burst <n> Requests a sandbox may spend at once (env PAYGROUND_RATE_BURST,
                    default: one second of --rate-limit)
   --no-rate-limit  Disable throttling even when the environment configures it
+  --retention-days <n>
+                   Prune requests, audit, webhooks and payments older than n days,
+                   on boot and hourly after that (env PAYGROUND_RETENTION_DAYS)
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -103,6 +107,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'admin-token': { type: 'string' },
     'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
+    'retention-days': { type: 'string' },
     'block-private-webhooks': { type: 'boolean' },
     'rate-limit': { type: 'string' },
     'rate-burst': { type: 'string' },
@@ -124,6 +129,16 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
   if (!port.ok) {
     env.io.err(port.message);
     return USAGE_ERROR;
+  }
+  const retentionRaw = text(parsed.values, 'retention-days') ?? env.variables['PAYGROUND_RETENTION_DAYS'];
+  let retentionDays: number | null = null;
+  if (retentionRaw !== undefined) {
+    const days = integer(retentionRaw, 'retention-days', 1, 3650);
+    if (!days.ok) {
+      env.io.err(days.message);
+      return USAGE_ERROR;
+    }
+    retentionDays = days.value;
   }
   const host = text(parsed.values, 'host') ?? env.variables['PAYGROUND_HOST'] ?? '127.0.0.1';
   const db = text(parsed.values, 'db') ?? env.variables['PAYGROUND_DB'] ?? DEFAULT_DB;
@@ -212,8 +227,38 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
   );
   env.io.out(label('health', `${origin}/_payground/health`));
 
+  let retention: Retention | null = null;
+  let retentionDb: ReturnType<Env['openDatabase']> | null = null;
+  if (retentionDays !== null) {
+    if (db === MEMORY) {
+      env.io.out(label('retention', `disabled — ${MEMORY} keeps nothing to prune`));
+    } else {
+      try {
+        retentionDb = env.openDatabase(db);
+      } catch (error) {
+        env.io.err(`cannot open the database at ${db} for retention: ${message(error)}`);
+        await server.stop(true);
+        storage.close();
+        return FAILURE;
+      }
+      const days = retentionDays;
+      retention = startRetention(retentionDb, {
+        clock: { now: () => env.now() },
+        days,
+        onPrune: (report) => {
+          if (report.total > 0) env.io.out(`pruned ${report.total} rows older than ${days} days`);
+        },
+        onError: (reason) => env.io.err(`retention failed: ${reason}`),
+      });
+      env.io.out(label('retention', `${days} days`));
+      retention.runNow();
+    }
+  }
+
   await env.waitForShutdown(origin);
 
+  retention?.stop();
+  retentionDb?.close();
   await server.stop(true);
   storage.close();
   env.io.out('payground stopped');

@@ -53,7 +53,7 @@ describe('cli', () => {
   });
 
   test('every command answers --help with exit code 0', async () => {
-    for (const command of ['start', 'seed', 'reset', 'sandbox', 'build-dashboard']) {
+    for (const command of ['start', 'seed', 'reset', 'sandbox', 'export', 'import', 'backup', 'prune', 'build-dashboard']) {
       const { env, out } = testEnv();
       expect(await main([command, '--help'], env)).toBe(0);
       expect(out.join('\n')).toContain('Usage: payground');

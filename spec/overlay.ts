@@ -215,6 +215,35 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://github.com/mercadopago/sdk-nodejs — dist/clients/payment/index.js',
   },
   {
+    area: 'Point',
+    summary: 'A payment intent carries an uppercase `state`, not the spec\'s lowercase `status`',
+    detail:
+      'spec3.json inlines a simplified Point schema with `status: open|on_terminal|processing|processed|...`. The real API and the official Node SDK both use `state` with `OPEN`, `ON_TERMINAL`, `PROCESSING`, `FINISHED`, `CANCELED` and `ERROR`, and put the resulting payment id on `payment.id`. payground follows the SDK. Refund intents share the same machine but render it as a lowercase `status`, so their terminal values are `finished` and `canceled` rather than the spec\'s `processed` and `cancelled`. Both views also carry `error` with the reason a `finish` failed.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — dist/clients/point/commonTypes.d.ts',
+  },
+  {
+    area: 'Node SDK',
+    summary: 'The Point `Device` type describes a payment-intent event, not a device',
+    detail:
+      '`GetDevicesResponse.devices` is typed as `{ payment_intent_id, status, created_on }`, while the endpoint returns `{ id, pos_id, store_id, external_pos_id, operating_mode }`. payground returns the real shape, so TypeScript callers must cast until the SDK types are fixed.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — dist/clients/point/commonTypes.d.ts',
+  },
+  {
+    area: 'Point',
+    summary: 'Devices are seeded, and a device holds one intent at a time',
+    detail:
+      'There is no API to register a card reader, so each sandbox is seeded with three PAX_A910__SMARTPOS devices on first read. A reader can only run one intent, so creating a second one while an OPEN, ON_TERMINAL or PROCESSING intent exists is a 409. A FINISHED intent creates a real approved payment from the documented approving test card, which is what makes it visible on /v1/payments. Transitions are driven through the control API (POST /_payground/sandboxes/{id}/point/intents/{id}/actions) rather than by elapsed time, so tests never sleep.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/mp-point/integration-configuration/integration-devices',
+  },
+  {
+    area: 'Terminals',
+    summary: '/terminals/v1 wraps its payload in `data`, which spec3.json omits',
+    detail:
+      'The Terminals API returns `{ "data": { "terminals": [...] }, "paging": {...} }` for the list and the setup call, while spec3.json inlines a flat `{ "terminals": [...] }`. payground emits the real envelope. Terminal actions accept the spec\'s `type` and the guide\'s `action` interchangeably and always echo both.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/terminals/_terminals_v1_list/get',
+  },
+  {
     area: 'Fixtures',
     summary: 'Upstream fixtures use the Orders API status vocabulary for a Payments API resource',
     detail:

@@ -3,6 +3,7 @@ import { VERSION } from '@payground/server';
 import { OK, USAGE_ERROR, flag, parseOptions } from './args.ts';
 import { type Env, defaultEnv } from './env.ts';
 import { runBuildDashboard } from './commands/build-dashboard.ts';
+import { runDoctor } from './commands/doctor.ts';
 import { runReset } from './commands/reset.ts';
 import { runSandbox } from './commands/sandbox.ts';
 import { runSeed } from './commands/seed.ts';
@@ -14,6 +15,7 @@ Usage: payground <command> [options]
 
   start             Run the sandbox server
   seed              Write deterministic sample payments
+  doctor            Check the recorded traffic against the official specification
   reset             Delete the data of one or every sandbox
   sandbox           list | create --name <name> | show <id> | delete <id>
   build-dashboard   Build the dashboard assets
@@ -56,6 +58,8 @@ export async function main(argv: readonly string[], env: Env = defaultEnv()): Pr
       return await runStart(rest, env);
     case 'seed':
       return runSeed(rest, env);
+    case 'doctor':
+      return runDoctor(rest, env);
     case 'reset':
       return runReset(rest, env);
     case 'sandbox':

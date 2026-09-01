@@ -16,6 +16,8 @@ export const START_USAGE = `Usage: payground start [options]
                    Generated and printed when omitted; --no-admin-token disables it
   --no-admin-token Leave the control API open (only safe on a private instance)
   --no-bootstrap   Start without creating a default sandbox
+  --strict         Refuse requests the real Mercado Pago API would refuse, and record
+                   every response that diverges from the specification
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -48,6 +50,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'admin-token': { type: 'string' },
     'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
+    strict: { type: 'boolean' },
     'block-private-webhooks': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   });
@@ -106,6 +109,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     adminToken,
     ...(flag(parsed.values, 'block-private-webhooks') ? { allowPrivateWebhookTargets: false } : {}),
     ...(flag(parsed.values, 'no-bootstrap') ? { bootstrap: false as const } : {}),
+    strict: flag(parsed.values, 'strict'),
   };
 
   let server: ReturnType<typeof createServer>;
@@ -140,6 +144,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
       ? label('admin token', 'disabled — the control API is open')
       : label('admin token', adminToken),
   );
+  if (flag(parsed.values, 'strict')) env.io.out(label('strict mode', 'on — requests are validated against the specification'));
   env.io.out(label('health', `${origin}/_payground/health`));
 
   await env.waitForShutdown(origin);

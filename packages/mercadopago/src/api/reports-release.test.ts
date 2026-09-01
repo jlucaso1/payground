@@ -166,9 +166,9 @@ describe('report content', () => {
       '1',
       'ext-1',
       'order one',
-      '95.01',
       '100.00',
-      '4.99',
+      '100.00',
+      '0.00',
     ]);
   });
 
@@ -219,11 +219,11 @@ describe('report content', () => {
     expect(lines[1]).toBe('1;"a;b""c";2024-03-10T15:00:00.000+00:00');
   });
 
-  test('financing fee grows with the instalment count', () => {
+  test('no fee is charged, so net always equals gross', () => {
     const { harness, task } = generated([{ amount: 10_000, settledAt: NOW, installments: 4 }]);
     const rows = parse(unwrap(downloadReleaseReport(harness.context, task.file_name ?? '')).body);
-    // 3 extra instalments at 1% each = 300 minor.
-    expect([rows[1]?.[8], rows[1]?.[9], rows[1]?.[5]]).toEqual(['4.99', '3.00', '92.01']);
+    // GET /v1/payments/{id} reports fee_details: [] and net_amount == gross; the report agrees.
+    expect([rows[1]?.[8], rows[1]?.[9], rows[1]?.[5]]).toEqual(['0.00', '0.00', '100.00']);
   });
 });
 

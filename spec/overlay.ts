@@ -527,10 +527,10 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post',
   },
   {
-    area: 'Settlement report',
-    summary: 'Fee and tax columns are always zero because payground charges no fees',
+    area: 'Reports',
+    summary: 'Fee and tax columns are always zero in both reports, because payground charges no fees',
     detail:
-      'MP_FEE_AMOUNT, FINANCING_FEE_AMOUNT and TAXES_AMOUNT are emitted as 0.00 and SETTLEMENT_NET_AMOUNT equals TRANSACTION_AMOUNT. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a fee here would make the report disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds.',
+      'Every fee and tax column of both the release and the settlement report is 0.00, and the net columns equal the gross. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a rate would make the reports disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds, so the reports reconcile exactly against the Payments API.',
     source:
       'https://www.mercadopago.com.br/developers/en/docs/your-integrations/reports/settlement-report/columns',
   },

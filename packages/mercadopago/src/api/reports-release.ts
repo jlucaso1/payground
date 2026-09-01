@@ -63,19 +63,19 @@ export interface ReleaseRow {
 /* ------------------------------------------------------------------- fees */
 
 /**
- * Mercado Pago publishes its rates commercially, not in the OpenAPI spec, so payground uses
- * a fixed basis-point table per payment type. What matters for a staging environment is that
- * every row reconciles exactly: net = gross - fees, computed in minor units only.
- * https://www.mercadopago.com.br/costs-section/release-options
+ * payground charges nothing: `GET /v1/payments/{id}` reports `fee_details: []` and a
+ * `net_amount` equal to the gross. Inventing a rate here would make the report disagree
+ * with the API the integrator reads, so every fee column is zero and net equals gross.
+ * The settlement report does the same, and FIDELITY.md records it.
  */
 const FEE_BPS: Record<PaymentMethodKind, number> = {
-  card: 499,
-  bank_transfer: 99,
-  voucher: 349,
-  wallet: 499,
+  card: 0,
+  bank_transfer: 0,
+  voucher: 0,
+  wallet: 0,
 };
 
-const FINANCING_BPS_PER_INSTALLMENT = 100;
+const FINANCING_BPS_PER_INSTALLMENT = 0;
 
 const applyBps = (gross: Minor, bps: number): Minor => Math.floor((gross * bps) / 10_000) as Minor;
 

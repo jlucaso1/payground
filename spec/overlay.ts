@@ -208,6 +208,27 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post',
   },
   {
+    area: 'Chargebacks',
+    summary: 'The chargeback id is the id of the disputed payment',
+    detail:
+      'The real API mints an independent chargeback id and delivers it on the `chargebacks` webhook topic. payground opens the chargeback when the payment enters `in_mediation` — through the control API `dispute` action — and addresses it by the payment id, so `GET /v1/chargebacks/{payment_id}` is reachable without a notification. Sending documentation with `PUT` settles the dispute for the collector; letting the seven day deadline pass charges the payment back.',
+    source: 'https://www.mercadopago.com.br/developers/en/docs/checkout-api/chargebacks-management',
+  },
+  {
+    area: 'Chargebacks',
+    summary: '`documentation` is an array of uploaded files, not an object',
+    detail:
+      'spec3.json types `documentation` as an object. The resource returns the list of files sent for the dispute, so payground returns an array. It also returns `payment_id`, `status` and `live_mode`, which the spec omits but the Node SDK ChargebackResponse declares.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — clients/chargeback/commonTypes.ts',
+  },
+  {
+    area: 'Advanced payments',
+    summary: 'Split payments are ordinary payments and the split must balance',
+    detail:
+      'Each entry of `payments[]` is created through the Payments API, so it appears under /v1/payments and follows the same state machine; the advanced payment status is recomputed from them on every read, capture and cancel are all-or-nothing, and a rejected split rejects the whole advanced payment and gives back whatever the others collected. `disbursements[]` must add up to the collected total, and the Wallet Connect `wallet_payment` body is mapped to a single `account_money` payment whose payer address is derived from `payer.token` when no email is sent.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/advanced_payments/_advanced_payments/post',
+  },
+  {
     area: 'Node SDK',
     summary: 'Per-call requestOptions leak into the shared client configuration',
     detail:

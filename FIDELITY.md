@@ -34,6 +34,22 @@ Added: `payment_method_id`, `three_ds_mode`, `point_of_interaction`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/payments/_payments/post
 
+### `ReportTask`
+
+The task response carries the generated file name, which spec3.json omits; without it a client cannot build the download URL itself.
+
+Added: `file_name`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report/post
+
+### `ReportEntry`
+
+GET /v1/account/release_report/list reports the schedule that produces each file; spec3.json reuses the plain report entry and drops the schedule.
+
+Added: `frequency`, `enabled`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report_list/get
+
 ## Behavioural divergences
 
 ### Payments — Payment `id` is a number on the resource and a string in search results

@@ -2638,6 +2638,10 @@ export function checkReportTask(value: unknown, path: string, out: Issue[]): voi
         if (typeof v7 !== 'string') out.push({ path: path + ".download_url", message: 'expected string' });
       }
     }
+    const v8: unknown = value["file_name"];
+    if (v8 !== undefined) {
+      if (typeof v8 !== 'string') out.push({ path: path + ".file_name", message: 'expected string' });
+    }
   }
 }
 
@@ -2678,6 +2682,25 @@ export function checkReportEntry(value: unknown, path: string, out: Issue[]): vo
     const v7: unknown = value["file_name"];
     if (v7 !== undefined) {
       if (typeof v7 !== 'string') out.push({ path: path + ".file_name", message: 'expected string' });
+    }
+    const v8: unknown = value["frequency"];
+    if (v8 !== undefined) {
+      if (!isObject(v8)) {
+        out.push({ path: path + ".frequency", message: 'expected object' });
+      } else {
+        const v9: unknown = v8["hour"];
+        if (v9 !== undefined) {
+          if (typeof v9 !== 'number' || !Number.isInteger(v9)) out.push({ path: path + ".frequency" + ".hour", message: 'expected integer' });
+        }
+        const v10: unknown = v8["type"];
+        if (v10 !== undefined) {
+          if (v10 !== "daily" && v10 !== "weekly" && v10 !== "monthly") out.push({ path: path + ".frequency" + ".type", message: 'not one of the allowed values' });
+        }
+      }
+    }
+    const v11: unknown = value["enabled"];
+    if (v11 !== undefined) {
+      if (typeof v11 !== 'boolean') out.push({ path: path + ".enabled", message: 'expected boolean' });
     }
   }
 }

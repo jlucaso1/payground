@@ -167,6 +167,26 @@ export const OVERLAY: readonly OverlayEntry[] = [
       },
     },
   },
+  {
+    schema: 'ReportTask',
+    note: 'The task response carries the generated file name, which spec3.json omits; without it a client cannot build the download URL itself.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report/post',
+    properties: {
+      file_name: { type: 'string' },
+    },
+  },
+  {
+    schema: 'ReportEntry',
+    note: 'GET /v1/account/release_report/list reports the schedule that produces each file; spec3.json reuses the plain report entry and drops the schedule.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report_list/get',
+    properties: {
+      frequency: {
+        type: 'object',
+        properties: { hour: { type: 'integer' }, type: { type: 'string', enum: ['daily', 'weekly', 'monthly'] } },
+      },
+      enabled: { type: 'boolean' },
+    },
+  },
 ];
 
 export const DIVERGENCES: readonly Divergence[] = [

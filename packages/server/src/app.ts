@@ -9,6 +9,7 @@ import {
   sandboxId,
 } from '@payground/core';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
+import { runBilling } from '@payground/mercadopago/api/subscriptions.ts';
 import { Storage } from '@payground/storage';
 import { dashboardHandler } from './dashboard.ts';
 import { MetricsRegistry } from './metrics/index.ts';
@@ -111,6 +112,10 @@ export function createApp(options: AppOptions = {}): App {
     now: () => clock.now(),
     uuid: () => ids.uuid(),
     audit: storage.audit,
+    hooks: {
+      drainWebhooks,
+      runBilling: (sandbox, at) => runBilling(contextFor(runtime, sandbox), at),
+    },
     notify: (sandbox, action, dataId, notificationUrl) => {
       contextFor(runtime, sandbox).events.emit({ type: 'payment', action, dataId, notificationUrl });
     },
@@ -160,6 +165,14 @@ export function createApp(options: AppOptions = {}): App {
     '/_payground/sandboxes/:id/payments/:pid/actions': {
       POST: admin(async (request) =>
         send(control.actOnPayment(deps, path(request, 'id'), path(request, 'pid'), await json(request))),
+      ),
+    },
+    '/_payground/webhooks/drain': {
+      POST: admin(async () => send(await control.drainWebhooks(deps))),
+    },
+    '/_payground/sandboxes/:id/billing/run': {
+      POST: admin(async (request) =>
+        send(control.runBilling(deps, path(request, 'id'), new URL(request.url).searchParams)),
       ),
     },
     '/_payground/sandboxes/:id/documents/kinds': {

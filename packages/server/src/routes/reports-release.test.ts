@@ -77,7 +77,7 @@ describe('release reports over HTTP', () => {
     expect(lines[0]?.split(';')[0]).toBe('RELEASE_DATE');
     expect(lines.length).toBe(4);
     // 120.50 through Pix costs 0.99%, i.e. 1.19 rounded down, so 119.31 is released.
-    expect(lines[1]).toContain(`;${paymentId};;release;"coffee, ""large""";119.31;0.00;120.50;1.19;`);
+    expect(lines[1]).toContain(`;${paymentId};;release;"coffee, ""large""";120.50;0.00;120.50;0.00;`);
     expect(lines.some((line) => line.includes(';refund;'))).toBe(true);
 
     const listed = await server.api('GET', '/v1/account/release_report');

@@ -102,6 +102,12 @@ The spec describes neither the payout transaction statuses nor how a transfer se
 
 Source: https://www.mercadopago.com.br/developers/en/reference/payouts/_payouts/post
 
+### In-store QR — `qr_data` is a Pix BR Code backed by a real pending payment
+
+The real dynamic QR returns a proprietary Mercado Pago trama that only their app can read, and creates the payment when the buyer scans it. payground returns the BR Code of a pending Pix payment it opens with the order, so the code is scannable by any decoder and the merchant order exists from the start; collecting that payment closes the in-store order. `cash_out.amount` is recorded beside the items instead of inside `total_amount`, which stays equal to the sum of the items.
+
+Source: https://www.mercadopago.com/developers/en/docs/qr-code/orders/create-order
+
 ### Node SDK — Per-call requestOptions leak into the shared client configuration
 
 Payment.create and friends assign `this.config.options = {...this.config.options, ...requestOptions}`, so a per-call X-Idempotency-Key is pinned onto the client and reused by every later request. Against the real API this silently replays a stale response; against payground it surfaces as a 409. Use a fresh client per idempotency key, or omit requestOptions.

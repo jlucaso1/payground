@@ -292,6 +292,13 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://www.mercadopago.com.br/developers/en/reference/payouts/_payouts/post',
   },
   {
+    area: 'In-store QR',
+    summary: '`qr_data` is a Pix BR Code backed by a real pending payment',
+    detail:
+      'The real dynamic QR returns a proprietary Mercado Pago trama that only their app can read, and creates the payment when the buyer scans it. payground returns the BR Code of a pending Pix payment it opens with the order, so the code is scannable by any decoder and the merchant order exists from the start; collecting that payment closes the in-store order. `cash_out.amount` is recorded beside the items instead of inside `total_amount`, which stays equal to the sum of the items.',
+    source: 'https://www.mercadopago.com/developers/en/docs/qr-code/orders/create-order',
+  },
+  {
     area: 'Node SDK',
     summary: 'Per-call requestOptions leak into the shared client configuration',
     detail:

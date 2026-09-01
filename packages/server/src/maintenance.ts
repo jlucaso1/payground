@@ -69,15 +69,24 @@ export const EXPORTED_TABLES: readonly TableSpec[] = [
   },
 ];
 
-/** Same pragmas as `Storage.open`, minus the migrations: the schema must already exist. */
+/**
+ * Opens an existing database for a CLI command. The schema must already exist, so no
+ * migration runs, but the pragma order matters exactly as it does in `Storage.open`:
+ * busy_timeout has to be set before the WAL switch, which needs a brief exclusive lock.
+ */
 export function openDatabase(path: string): Database {
   const db = new Database(path, { create: true, strict: false });
-  db.exec('pragma foreign_keys = on');
-  if (path !== ':memory:') {
-    db.exec('pragma journal_mode = wal');
-    db.exec('pragma busy_timeout = 5000');
+  try {
+    db.exec('pragma foreign_keys = on');
+    if (path !== ':memory:') {
+      db.exec('pragma busy_timeout = 5000');
+      db.exec('pragma journal_mode = wal');
+    }
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
   }
-  return db;
 }
 
 export interface ExportOptions {

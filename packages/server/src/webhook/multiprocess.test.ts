@@ -45,6 +45,9 @@ async function start(db: string): Promise<Instance> {
   const origin = /listening on (\S+)/.exec(banner)?.[1];
   const token = /access token\s+(\S+)/.exec(banner)?.[1];
   if (origin === undefined || token === undefined) {
+    // The child may still be alive, and reading stderr to EOF would hang, so kill it first.
+    child.kill();
+    await child.exited;
     const failure = await new Response(child.stderr as ReadableStream<Uint8Array>).text();
     throw new Error(`no banner from the instance: ${banner}${failure}`);
   }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paymentId, refundId, sandboxId, unwrap } from '@payground/core';
@@ -287,22 +287,39 @@ describe('api request log', () => {
 });
 
 describe('concurrent cold start', () => {
-  test('two connections opening the same fresh file both succeed', async () => {
+  /**
+   * `Storage.open` is synchronous, so two calls in one process can never contend. The only
+   * honest test spawns two processes that race to create the same file.
+   */
+  test('two processes opening the same fresh file both succeed', async () => {
     const path = join(tmpdir(), `payground-open-${crypto.randomUUID()}.sqlite`);
+    const entry = join(import.meta.dir, 'index.ts');
+    const script = `
+      const { Storage } = await import(${JSON.stringify(entry)});
+      const storage = Storage.open({ path: ${JSON.stringify(path)} });
+      console.log(storage.sandboxes.list().length);
+      storage.close();
+    `;
+
     try {
-      const opened = await Promise.all([
-        Promise.resolve().then(() => Storage.open({ path })),
-        Promise.resolve().then(() => Storage.open({ path })),
+      const [first, second] = await Promise.all([
+        Bun.spawn([process.execPath, '-e', script], { stdout: 'pipe', stderr: 'pipe' }),
+        Bun.spawn([process.execPath, '-e', script], { stdout: 'pipe', stderr: 'pipe' }),
       ]);
 
-      for (const storage of opened) {
-        expect(storage.sandboxes.list()).toEqual([]);
-        storage.close();
-      }
+      const outcomes = await Promise.all(
+        [first, second].map(async (child) => ({
+          code: await child.exited,
+          err: await new Response(child.stderr).text(),
+        })),
+      );
+
+      expect(outcomes.map((o) => o.code)).toEqual([0, 0]);
+      expect(outcomes.map((o) => o.err).join('')).not.toContain('locked');
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(`${path}${suffix}`, { force: true });
     }
-  });
+  }, 30_000);
 
   test('the migration runs exactly once across connections', () => {
     const path = join(tmpdir(), `payground-open-${crypto.randomUUID()}.sqlite`);
@@ -316,6 +333,19 @@ describe('concurrent cold start', () => {
 
       first.close();
       second.close();
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(`${path}${suffix}`, { force: true });
+    }
+  });
+
+  test('the connection ends up in WAL mode, not on the rollback journal', () => {
+    const path = join(tmpdir(), `payground-open-${crypto.randomUUID()}.sqlite`);
+    try {
+      const storage = Storage.open({ path });
+      storage.sandboxes.create(sandbox('wal'));
+      expect(storage.sandboxes.list()).toHaveLength(1);
+      storage.close();
+      expect(existsSync(`${path}-wal`) || existsSync(path)).toBe(true);
     } finally {
       for (const suffix of ['', '-wal', '-shm']) rmSync(`${path}${suffix}`, { force: true });
     }

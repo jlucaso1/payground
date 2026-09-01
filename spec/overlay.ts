@@ -345,9 +345,53 @@ export const OVERLAY: readonly OverlayEntry[] = [
       benefited: { type: 'string', enum: ['complainant', 'respondent'] },
     },
   },
+  {
+    schema: 'SubscriptionRequest',
+    note: 'Subscriptions carry their own notification_url, which is how an integrator receives the subscription_preapproval and subscription_authorized_payment topics. The vendored spec omits it, so a request that sets it was refused in strict mode.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks',
+    properties: {
+      notification_url: { type: 'string' },
+    },
+  },
+  {
+    schema: 'SubscriptionPlanRequest',
+    note: 'A plan carries a notification_url for the subscription_preapproval_plan topic. The vendored spec omits it.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks',
+    properties: {
+      notification_url: { type: 'string' },
+    },
+  },
+  {
+    schema: 'Subscription',
+    note: 'The subscription resource echoes the notification_url it was created with.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks',
+    properties: {
+      notification_url: { type: ['string', 'null'] },
+    },
+  },
+  {
+    schema: 'SubscriptionPlan',
+    note: 'The plan resource echoes the notification_url it was created with.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks',
+    properties: {
+      notification_url: { type: ['string', 'null'] },
+    },
+  },
 ];
 
 export const DIVERGENCES: readonly Divergence[] = [
+  {
+    area: 'Subscriptions',
+    summary: 'Subscription invoices are searchable at /authorized_payments/search as well as /authorized_payments',
+    detail:
+      'The vendored spec lists only GET /authorized_payments for the search. The reference documents GET /authorized_payments/search, and the official Node SDK Invoice.search calls that path, so a suite using the SDK hits the {id} route and gets a 404. payground serves both, with the same parameters and the same result shape.',
+    source:
+      'https://www.mercadopago.com.mx/developers/en/reference/subscriptions/_authorized_payments_search/get',
+  },
   {
     area: 'Claims',
     summary: 'Claims are opened and resolved from the control API, not the emulated one',

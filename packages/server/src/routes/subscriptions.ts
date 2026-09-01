@@ -82,6 +82,10 @@ export const subscriptions: RouteModule = {
     '/authorized_payments': {
       GET: endpoint(runtime, ({ service, url }) => fromResult(searchAuthorizedPayments(service, url.searchParams))),
     },
+    // The official SDK calls /authorized_payments/search; the vendored spec only has the bare path.
+    '/authorized_payments/search': {
+      GET: endpoint(runtime, ({ service, url }) => fromResult(searchAuthorizedPayments(service, url.searchParams))),
+    },
     '/authorized_payments/:id': {
       GET: endpoint(runtime, ({ service, request }) =>
         fromResult(getAuthorizedPayment(service, param(request, 'id'))),

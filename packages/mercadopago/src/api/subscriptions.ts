@@ -20,6 +20,7 @@ import {
 import { compact } from '../serialize/compact.ts';
 import { formatDateTime } from '../serialize/datetime.ts';
 import type { NotificationTopic, Rendered, ServiceContext } from './context.ts';
+import { readString } from './document.ts';
 import { createPayment } from './payments.ts';
 
 /* ------------------------------------------------------------------ model */
@@ -46,6 +47,7 @@ type PlanDoc = {
   reason: string;
   auto_recurring: Recurrence;
   back_url: string | null;
+  notification_url: string | null;
   payment_methods_allowed: JsonValue;
 };
 
@@ -58,6 +60,7 @@ type SubscriptionDoc = {
   payer_id: number;
   external_reference: string | null;
   back_url: string | null;
+  notification_url: string | null;
   auto_recurring: Recurrence;
   payment_method_id: string | null;
   card_id: number | null;
@@ -105,15 +108,31 @@ const STATUSES: readonly SubscriptionStatus[] = ['pending', 'authorized', 'pause
 const BILLING_METHOD = 'account_money';
 const AUTHORIZED_PAYMENT_BASE = 1_000_000_000;
 const PAGE_CAP = 1000;
+/** A far future instant would otherwise charge a monthly plan forever. One run is bounded. */
+const CYCLES_PER_RUN = 1000;
 const DAY_MS = 86_400_000;
 
 /* ------------------------------------------------------------------ events */
 
 type SubscriptionTopic = Extract<NotificationTopic, `subscription_${string}`>;
 
-function emit(context: ServiceContext, type: SubscriptionTopic, action: string, dataId: string): void {
-  context.events.emit({ type, action, dataId, notificationUrl: null });
+/**
+ * Subscriptions carry their own notification_url, and the topics ride it. Without one the
+ * notice is still emitted so a test sink can observe it, but nothing is delivered.
+ * https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
+ */
+function emit(
+  context: ServiceContext,
+  type: SubscriptionTopic,
+  action: string,
+  dataId: string,
+  notificationUrl: string | null = null,
+): void {
+  context.events.emit({ type, action, dataId, notificationUrl });
 }
+
+const notificationUrlOf = (document: StoredDocument): string | null =>
+  readString(document.doc, 'notification_url') ?? null;
 
 /* ------------------------------------------------------------------ dates */
 
@@ -331,6 +350,7 @@ function renderPlan(context: ServiceContext, document: StoredDocument): WirePlan
     auto_recurring: wireRecurring(doc.auto_recurring),
     payment_methods_allowed: doc.payment_methods_allowed ?? undefined,
     back_url: doc.back_url ?? undefined,
+    notification_url: doc.notification_url ?? undefined,
     date_created: formatDateTime(document.createdAt),
     last_modified: formatDateTime(document.updatedAt),
     init_point: `${context.baseUrl}/subscriptions/checkout?preapproval_plan_id=${document.id}`,
@@ -354,6 +374,7 @@ function renderSubscription(context: ServiceContext, document: StoredDocument): 
     reason: doc.reason,
     external_reference: doc.external_reference ?? undefined,
     back_url: doc.back_url ?? undefined,
+    notification_url: doc.notification_url ?? undefined,
     status,
     date_created: formatDateTime(document.createdAt),
     last_modified: formatDateTime(document.updatedAt),
@@ -430,12 +451,13 @@ export function createPlan(context: ServiceContext, body: unknown): Result<Rende
       reason,
       auto_recurring: recurrence.value,
       back_url: validated.value.back_url ?? null,
+      notification_url: validated.value.notification_url ?? null,
       payment_methods_allowed: (body['payment_methods_allowed'] ?? null) as JsonValue,
     }),
   };
 
   context.store.documents.insert(document);
-  emit(context, 'subscription_preapproval_plan', 'created', document.id);
+  emit(context, 'subscription_preapproval_plan', 'created', document.id, notificationUrlOf(document));
   return ok({ status: 201, body: renderPlan(context, document) });
 }
 
@@ -473,6 +495,11 @@ export function updatePlan(context: ServiceContext, id: string, body: unknown): 
     return err(invalid('back_url must be a string'));
   }
 
+  const rawNotificationUrl = body['notification_url'];
+  if (rawNotificationUrl !== undefined && typeof rawNotificationUrl !== 'string') {
+    return err(invalid('notification_url must be a string'));
+  }
+
   const updated: StoredDocument = {
     ...document,
     status: rawStatus ?? document.status,
@@ -481,12 +508,13 @@ export function updatePlan(context: ServiceContext, id: string, body: unknown): 
       reason: typeof rawReason === 'string' ? rawReason.trim() : doc.reason,
       auto_recurring: recurrence,
       back_url: rawBackUrl ?? doc.back_url,
+      notification_url: rawNotificationUrl ?? doc.notification_url,
       payment_methods_allowed: (body['payment_methods_allowed'] ?? doc.payment_methods_allowed) as JsonValue,
     }),
   };
 
   context.store.documents.update(updated);
-  emit(context, 'subscription_preapproval_plan', 'updated', updated.id);
+  emit(context, 'subscription_preapproval_plan', 'updated', updated.id, notificationUrlOf(updated));
   return ok({ status: 200, body: renderPlan(context, updated) });
 }
 
@@ -605,6 +633,13 @@ export function createSubscription(context: ServiceContext, body: unknown): Resu
   const reason = typeof rawReason === 'string' ? rawReason.trim() : (inherited?.reason ?? null);
   if (reason === null) return err(invalid('reason: required'));
 
+  const rawNotificationUrl = body['notification_url'];
+  if (rawNotificationUrl !== undefined && typeof rawNotificationUrl !== 'string') {
+    return err(invalid('notification_url must be a string'));
+  }
+  // A subscription without one falls back to its plan, the way back_url does.
+  const notificationUrl = rawNotificationUrl ?? (plan === null ? null : notificationUrlOf(plan));
+
   const token = body['card_token_id'];
   if (token !== undefined && typeof token !== 'string') return err(invalid('card_token_id must be a string'));
 
@@ -647,6 +682,7 @@ export function createSubscription(context: ServiceContext, body: unknown): Resu
       payer_id: payerIdFor(email),
       external_reference: externalReference ?? null,
       back_url: backUrl ?? inherited?.back_url ?? null,
+      notification_url: notificationUrl ?? null,
       auto_recurring: recurrence,
       payment_method_id: authorized ? (card.paymentMethodId ?? BILLING_METHOD) : null,
       card_id: authorized ? card.cardId : null,
@@ -660,7 +696,13 @@ export function createSubscription(context: ServiceContext, body: unknown): Resu
   };
 
   context.store.documents.insert(document);
-  emit(context, 'subscription_preapproval', authorized ? 'subscription.authorized' : 'created', document.id);
+  emit(
+    context,
+    'subscription_preapproval',
+    authorized ? 'subscription.authorized' : 'created',
+    document.id,
+    notificationUrlOf(document),
+  );
   return ok({ status: 201, body: renderSubscription(context, document) });
 }
 
@@ -741,7 +783,7 @@ export function updateSubscription(
   };
 
   context.store.documents.update(updated);
-  emit(context, 'subscription_preapproval', action(current, requested), updated.id);
+  emit(context, 'subscription_preapproval', action(current, requested), updated.id, notificationUrlOf(updated));
   return ok({ status: 200, body: renderSubscription(context, updated) });
 }
 
@@ -949,6 +991,8 @@ function chargeOnce(context: ServiceContext, document: StoredDocument, doc: Subs
     description: doc.reason,
     payer: { email: doc.payer_email },
     ...(doc.external_reference === null ? {} : { external_reference: doc.external_reference }),
+    // The generated payment notifies the subscription's url, so one target sees the whole cycle.
+    ...(doc.notification_url === null ? {} : { notification_url: doc.notification_url }),
     metadata: { preapproval_id: document.id, cycle },
   });
 
@@ -972,6 +1016,7 @@ function recordInvoice(
   charge: Charge,
 ): StoredDocument {
   const now = context.clock.now();
+  const url = notificationUrlOf(subscription);
   const status = charge.approved ? 'processed' : 'recycling';
   const existing = context.store.documents
     .search('authorized_payment', { lookup: subscription.id, status: 'recycling', limit: PAGE_CAP, offset: 0 })
@@ -991,7 +1036,7 @@ function recordInvoice(
   if (existing !== undefined) {
     const updated: StoredDocument = { ...existing, status, updatedAt: now, doc: asJson(doc) };
     context.store.documents.update(updated);
-    emit(context, 'subscription_authorized_payment', 'updated', String(updated.sequence));
+    emit(context, 'subscription_authorized_payment', 'updated', String(updated.sequence), url);
     return updated;
   }
 
@@ -1010,7 +1055,7 @@ function recordInvoice(
     doc: asJson(doc),
   };
   context.store.documents.insert(created);
-  emit(context, 'subscription_authorized_payment', 'created', String(created.sequence));
+  emit(context, 'subscription_authorized_payment', 'created', String(created.sequence), url);
   return created;
 }
 
@@ -1034,7 +1079,7 @@ export function runBilling(context: ServiceContext, at: number): { charged: numb
     if (doc.anchor === null) continue;
     let touched = false;
 
-    for (;;) {
+    for (let round = 0; round < CYCLES_PER_RUN; round++) {
       const pending = doc.proportional;
       const proportional = pending !== null && !pending.charged && pending.at <= at;
       if (!proportional && (exhausted(doc) || dueAt(doc, doc.cycle) > at)) break;
@@ -1063,7 +1108,7 @@ export function runBilling(context: ServiceContext, at: number): { charged: numb
 
     if (touched) {
       context.store.documents.update({ ...subscription, updatedAt: context.clock.now(), doc: asJson(doc) });
-      emit(context, 'subscription_preapproval', 'updated', subscription.id);
+      emit(context, 'subscription_preapproval', 'updated', subscription.id, notificationUrlOf(subscription));
     }
   }
 

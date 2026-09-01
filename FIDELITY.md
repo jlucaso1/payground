@@ -8,7 +8,7 @@ A schema gap cannot go undocumented: the overlay is the only way to widen a gene
 and an entry does not compile without its prose and the source the shape came from. The
 behavioural entries are written by hand, one per decision payground had to make.
 
-15 schema gaps, 26 behavioural divergences across 19 areas.
+19 schema gaps, 27 behavioural divergences across 20 areas.
 
 ## Schema gaps filled by the overlay
 
@@ -134,6 +134,38 @@ Each expected resolution has an `id` and a currency, and says which side it favo
 Added: `id`, `currency_id`, `benefited`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/claims/get-expected-resolutions/get
+
+### `SubscriptionRequest`
+
+Subscriptions carry their own notification_url, which is how an integrator receives the subscription_preapproval and subscription_authorized_payment topics. The vendored spec omits it, so a request that sets it was refused in strict mode.
+
+Added: `notification_url`
+
+Source: https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
+
+### `SubscriptionPlanRequest`
+
+A plan carries a notification_url for the subscription_preapproval_plan topic. The vendored spec omits it.
+
+Added: `notification_url`
+
+Source: https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
+
+### `Subscription`
+
+The subscription resource echoes the notification_url it was created with.
+
+Added: `notification_url`
+
+Source: https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
+
+### `SubscriptionPlan`
+
+The plan resource echoes the notification_url it was created with.
+
+Added: `notification_url`
+
+Source: https://www.mercadopago.com.br/developers/en/docs/subscriptions/additional-content/your-integrations/notifications/webhooks
 
 ## Behavioural divergences
 
@@ -301,6 +333,14 @@ Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos_id/put
 On the real API `qr.template_document` is a PDF. payground renders no PDFs, so it serves the same printable page as HTML at the URL it advertises, and `qr.image` and `qr.template_image` as real PNGs of the QR code. Every URL a POS advertises is served by payground rather than pointing at mercadopago.com.
 
 Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
+
+### Subscriptions
+
+#### Subscription invoices are searchable at /authorized_payments/search as well as /authorized_payments
+
+The vendored spec lists only GET /authorized_payments for the search. The reference documents GET /authorized_payments/search, and the official Node SDK Invoice.search calls that path, so a suite using the SDK hits the {id} route and gets a 404. payground serves both, with the same parameters and the same result shape.
+
+Source: https://www.mercadopago.com.mx/developers/en/reference/subscriptions/_authorized_payments_search/get
 
 ### Terminals
 

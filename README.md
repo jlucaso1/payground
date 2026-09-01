@@ -307,6 +307,34 @@ const valid = timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
 Deliveries, attempts, status codes and bodies are visible in the dashboard and through the
 control API, and can be replayed from either.
 
+### Driving delivery from a test suite
+
+A suite running in another process cannot wait on the background runner without sleeping.
+`POST /_payground/webhooks/drain` sends everything due and answers with the count, so an
+assertion follows the call instead of a timer:
+
+```sh
+curl -fsS -XPOST -H "Authorization: Bearer $ADMIN" \
+  http://127.0.0.1:8080/_payground/webhooks/drain
+# {"delivered":3}
+```
+
+Recurring billing works the same way. Subscriptions only advance when something asks them
+to, so name the instant you want billed:
+
+```sh
+curl -fsS -XPOST -H "Authorization: Bearer $ADMIN" \
+  "http://127.0.0.1:8080/_payground/sandboxes/$SANDBOX/billing/run?at=$(date -d '+40 days' +%s)000"
+# {"at":1706...,"charged":2,"failed":0}
+```
+
+One run charges at most 1000 cycles per subscription, so a far future instant advances a
+long way without running forever. Call it again to continue.
+
+Subscriptions carry their own `notification_url`, inherited from the plan when absent, and
+it receives the `subscription_preapproval`, `subscription_preapproval_plan`,
+`subscription_authorized_payment` and `payment` topics.
+
 Webhook targets on private addresses are allowed by default, because delivering to
 `localhost` is the whole point of a local sandbox. On a shared deployment, start with
 `--block-private-webhooks`; see [DEPLOY.md](DEPLOY.md).
@@ -395,6 +423,8 @@ on a private instance.
 | `POST` | `/_payground/sandboxes/{id}/payments/{pid}/actions` | Force a transition |
 | `GET` | `/_payground/sandboxes/{id}/webhooks` | Deliveries and attempts |
 | `POST` | `/_payground/sandboxes/{id}/webhooks/{wid}/replay` | Replay a delivery |
+| `POST` | `/_payground/webhooks/drain` | Deliver everything due now, and report how many went out |
+| `POST` | `/_payground/sandboxes/{id}/billing/run` | Charge every subscription due at `?at=<unix ms>`, default now |
 | `GET` `PUT` | `/_payground/sandboxes/{id}/faults` | Latency, error rate, unavailability, duplicate and failing webhooks |
 | `GET` | `/_payground/sandboxes/{id}/documents/kinds` | The 26 stored resource kinds, with a count each |
 | `GET` | `/_payground/sandboxes/{id}/documents` | Browse one kind: `kind` (required), `status`, `external_reference`, `q`, paging |

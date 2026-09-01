@@ -79,12 +79,20 @@ const deliveryView = (delivery: WebhookDelivery, store: SandboxStore) => ({
   history: store.webhooks.attempts(delivery.id),
 });
 
+export interface ControlHooks {
+  /** Delivers everything currently due. Injected so the route does not reach into the app. */
+  drainWebhooks: () => Promise<number>;
+  /** Charges every subscription due at `at`. Injected because the billing engine needs a service context. */
+  runBilling: (sandbox: Sandbox, at: number) => { charged: number; failed: number };
+}
+
 export interface ControlDeps {
   storage: Storage;
   now: () => number;
   uuid: () => string;
   /** Queues the notification a state change would produce on the real API. */
   notify: (sandbox: Sandbox, action: string, dataId: string, notificationUrl: string | null) => void;
+  hooks?: ControlHooks;
   /** Optional so an embedder can opt out; the app passes `storage.audit`. */
   audit?: AuditLog;
   /** Every control-API call is admin-gated, so that is the default actor. */
@@ -371,6 +379,15 @@ export function getDocument(deps: ControlDeps, id: string, kind: string, documen
   return document === null ? fail(404, 'document not found') : { status: 200, body: document };
 }
 
+/**
+ * An out-of-process test cannot call app.drainWebhooks(), so without this it has to sleep
+ * and hope the background tick fired. Draining on demand makes delivery deterministic.
+ */
+export async function drainWebhooks(deps: ControlDeps): Promise<ControlResult> {
+  if (deps.hooks === undefined) return fail(501, 'webhook delivery is not wired on this instance');
+  return { status: 200, body: { delivered: await deps.hooks.drainWebhooks() } };
+}
+
 export function listWebhooks(deps: ControlDeps, id: string): ControlResult {
   const found = resolve(deps, id);
   if (found === null) return fail(404, 'sandbox not found');
@@ -392,6 +409,24 @@ export function replayWebhook(deps: ControlDeps, id: string, deliveryId: string)
   });
   audit(deps, 'webhook.replayed', delivery.id, found.sandbox.id, { event: delivery.event, url: delivery.url });
   return { status: 200, body: { ok: true } };
+}
+
+/**
+ * Recurring billing only advances when something calls it. In-process tests move the clock,
+ * but an external suite has no clock, so it names the instant it wants billed instead.
+ */
+export function runBilling(deps: ControlDeps, id: string, params: URLSearchParams): ControlResult {
+  if (deps.hooks === undefined) return fail(501, 'billing is not wired on this instance');
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+
+  const raw = params.get('at');
+  const at = raw === null ? deps.now() : Number(raw);
+  if (!Number.isSafeInteger(at) || at < 0) return fail(400, 'at must be a unix timestamp in milliseconds');
+
+  const result = deps.hooks.runBilling(found.sandbox, at);
+  audit(deps, 'billing.run', id, found.sandbox.id, { at, ...result });
+  return { status: 200, body: { at, ...result } };
 }
 
 export function getFaults(deps: ControlDeps, id: string): ControlResult {

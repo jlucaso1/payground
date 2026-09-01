@@ -108,6 +108,8 @@ const STATUSES: readonly SubscriptionStatus[] = ['pending', 'authorized', 'pause
 const BILLING_METHOD = 'account_money';
 const AUTHORIZED_PAYMENT_BASE = 1_000_000_000;
 const PAGE_CAP = 1000;
+/** A far future instant would otherwise charge a monthly plan forever. One run is bounded. */
+const CYCLES_PER_RUN = 1000;
 const DAY_MS = 86_400_000;
 
 /* ------------------------------------------------------------------ events */
@@ -1077,7 +1079,7 @@ export function runBilling(context: ServiceContext, at: number): { charged: numb
     if (doc.anchor === null) continue;
     let touched = false;
 
-    for (;;) {
+    for (let round = 0; round < CYCLES_PER_RUN; round++) {
       const pending = doc.proportional;
       const proportional = pending !== null && !pending.charged && pending.at <= at;
       if (!proportional && (exhausted(doc) || dueAt(doc, doc.cycle) > at)) break;

@@ -629,3 +629,15 @@ describe('notification_url', () => {
     expect(failure(updatePlan(context, plan['id'] as string, { notification_url: 7 })).status).toBe(400);
   });
 });
+
+describe('billing bounds', () => {
+  test('a far future instant charges a bounded number of cycles', () => {
+    const { context } = harness();
+    const id = subscribe(context, { frequency: 1, frequency_type: 'days', transaction_amount: 1 })['id'] as string;
+    const result = runBilling(context, Number.MAX_SAFE_INTEGER);
+    expect(result.charged).toBe(1000);
+    expect(invoices(context, id)).toHaveLength(1000);
+    // The next run picks up where this one stopped rather than dropping the missed cycles.
+    expect(runBilling(context, Number.MAX_SAFE_INTEGER).charged).toBe(1000);
+  });
+});

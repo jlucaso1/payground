@@ -328,6 +328,9 @@ curl -fsS -XPOST -H "Authorization: Bearer $ADMIN" \
 # {"at":1706...,"charged":2,"failed":0}
 ```
 
+One run charges at most 1000 cycles per subscription, so a far future instant advances a
+long way without running forever. Call it again to continue.
+
 Subscriptions carry their own `notification_url`, inherited from the plan when absent, and
 it receives the `subscription_preapproval`, `subscription_preapproval_plan`,
 `subscription_authorized_payment` and `payment` topics.

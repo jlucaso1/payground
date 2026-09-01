@@ -114,7 +114,8 @@ export function createApp(options: AppOptions = {}): App {
     audit: storage.audit,
     hooks: {
       drainWebhooks,
-      runBilling: (sandbox, at) => runBilling(contextFor(runtime, sandbox), at),
+      // One transaction per run, so a crash mid-cycle cannot leave an invoice without its payment.
+      runBilling: (sandbox, at) => storage.transaction(() => runBilling(contextFor(runtime, sandbox), at)),
     },
     notify: (sandbox, action, dataId, notificationUrl) => {
       contextFor(runtime, sandbox).events.emit({ type: 'payment', action, dataId, notificationUrl });

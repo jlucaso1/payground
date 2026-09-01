@@ -5,6 +5,8 @@ FROM oven/bun:1.4 AS build
 WORKDIR /app
 
 # Workspace manifests first, so the dependency layer is cached across source edits.
+# bunfig.toml belongs here too: it sets `peer = false`, without which bun-plugin-tailwind
+# drags in a 150 MB copy of the Bun runtime as a peer dependency.
 COPY package.json bun.lock bunfig.toml ./
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
@@ -17,12 +19,28 @@ COPY e2e/package.json ./e2e/
 RUN bun install --frozen-lockfile
 
 COPY tsconfig.base.json tsconfig.json ./
+# packages/server/src/parity reaches out to spec/ for the OpenAPI document and the overlay.
+COPY spec ./spec
 COPY packages ./packages
 RUN bun run build
 
 # --- runtime ----------------------------------------------------------------
 FROM oven/bun:1.4-slim AS runtime
 WORKDIR /app
+
+# oven/bun already carries image.revision and image.version describing Bun itself. Once
+# image.source points at this repo those inherited values name a commit that does not
+# exist here, so they are overridden: a release build passes the real ones, and anything
+# else gets an empty label rather than a wrong one.
+ARG VERSION=""
+ARG REVISION=""
+LABEL org.opencontainers.image.title="payground" \
+      org.opencontainers.image.description="A stateful, self-hosted sandbox that speaks the Mercado Pago API" \
+      org.opencontainers.image.source="https://github.com/jlucaso1/payground" \
+      org.opencontainers.image.url="https://github.com/jlucaso1/payground" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
 
 ENV NODE_ENV=production \
     PAYGROUND_HOST=0.0.0.0 \

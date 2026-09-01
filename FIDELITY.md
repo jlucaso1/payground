@@ -90,7 +90,59 @@ Added: `file_name`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report/post
 
+### `Claim`
+
+The spec omits the payment the claim was opened against, the parent claim, the site, the status history the /status_history endpoint returns, and the resolution recorded when a dispute ends.
+
+Added: `resource_id`, `parent_id`, `site_id`, `status_history`, `resolution`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/get-claim/get
+
+### `ClaimMessage`
+
+The message list carries the claim it belongs to, the flat sender_role/receiver_role pair the notification payload uses, and the stage the message was written in; the spec only models the nested `from` object.
+
+Added: `claim_id`, `sender_role`, `receiver_role`, `stage`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/get-claim-messages/get
+
+### `ClaimEvidence`
+
+The attachment responses key a file by `file_id`, which ClaimEvidence lacks, and shipping evidence can be a plain `value` (a tracking code) rather than a file, so the file fields are nullable. The request enum also admits proof_of_delivery, which the resource enum omits.
+
+Added: `claim_id`, `file_id`, `file_name`, `content_type`, `size`, `value`, `description`, `type`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/upload-evidence/post
+
+### `ClaimReason`
+
+A reason carries the group it belongs to and the flow that produced it; the spec keeps only id, description and type.
+
+Added: `detail`, `group`, `flow`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/get-claim-reason/get
+
+### `MediationResolution`
+
+Each expected resolution is addressable and scoped to a currency; the spec omits both, so two options of the same type are indistinguishable.
+
+Added: `id`, `currency_id`, `benefited`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/get-expected-resolutions/get
+
 ## Behavioural divergences
+
+### Claims — Claims are opened and resolved from the control API, not the emulated one
+
+The real API has no public endpoint that opens a claim or applies a mediation resolution — a buyer opens a claim from the Mercado Pago front end and Mercado Pago mediates it. payground exposes both under the control namespace (POST /_payground/sandboxes/{id}/claims and .../claims/{claim_id}/resolve) so a test or the dashboard can drive a sandbox through the post-purchase flow. Resolving for the complainant refunds the payment through the same domain command the Payments API uses, so the money is real.
+
+Source: https://www.mercadopago.com.br/developers/en/docs/post-purchase/claims/introduction
+
+### Claims — Shipping evidence also accepts a file, and a message can declare its sender
+
+POST /post-purchase/v1/claims/{claim_id}/actions/evidences takes the specified JSON body `{ type, value }`, and additionally accepts multipart/form-data with a `file` part so an evidence photo or invoice can be exercised end to end. POST .../actions/send-message infers the sender from the token, which is always the seller; payground accepts a non-spec `sender_role` so a test can write the buyer or mediator side of a thread it has no session for.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/claims/upload-evidence/post
 
 ### Payments — Payment `id` is a number on the resource and a string in search results
 

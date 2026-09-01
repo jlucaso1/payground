@@ -200,6 +200,11 @@ export interface Address {
   city?: string;
   state?: string;
   country?: string;
+  id?: string;
+  neighborhood?: string | null;
+  comments?: string | null;
+  date_created?: string | null;
+  date_last_updated?: string | null;
 }
 
 /** Payment payer information */

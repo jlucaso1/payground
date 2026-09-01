@@ -141,6 +141,19 @@ export const OVERLAY: readonly OverlayEntry[] = [
     },
   },
   {
+    schema: 'Address',
+    note: 'The spec models Address as the street fields only, so a customer address has no identity: the create response, the list entries and the update target all need an id, and the API also returns the neighborhood, the free-form comments and the audit timestamps.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/reference/customer_addresses/_customers_customer_id_addresses/post',
+    properties: {
+      id: { type: 'string' },
+      neighborhood: { type: ['string', 'null'] },
+      comments: { type: ['string', 'null'] },
+      date_created: dateTime,
+      date_last_updated: dateTime,
+    },
+  },
+  {
     schema: 'Refund',
     note: 'The spec enumerates only approved, in_process and rejected. The API also reports cancelled refunds, and returns nullable reason and unique_sequence_number.',
     source: 'https://github.com/mercadopago/sdk-nodejs — clients/paymentRefund/commonTypes.ts',

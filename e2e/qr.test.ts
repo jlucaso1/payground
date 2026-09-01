@@ -47,7 +47,7 @@ describe('qr codes decode with third-party readers', () => {
   });
 
   test('unicode payloads survive as utf-8', () => {
-    const texts = ['Pagamento de R$ 10,50 — José', 'Ação ✓ 日本語 🙂', 'ÀÉÎÕÜ çñ ß', '한국어/中文/العربية'];
+    const texts = ['Pagamento de R$ 10,50, José', 'Ação ✓ 日本語 🙂', 'ÀÉÎÕÜ çñ ß', '한국어/中文/العربية'];
     for (const text of texts) {
       for (const ecc of LEVELS) {
         expect(roundTrip(text, { ecc })).toBe(text);
@@ -90,7 +90,7 @@ describe('qr codes decode with third-party readers', () => {
   });
 
   test('random unicode payloads round-trip', () => {
-    const alphabet = [...'abzAZ09 .-/*áéíóúçãõÀÉÎ日本語한국어✓€—🙂'];
+    const alphabet = [...'abzAZ09 .-/*áéíóúçãõÀÉÎ日本語한국어✓€-🙂'];
     const rng = new SeededRandom(1234);
     for (let i = 0; i < 60; i++) {
       const ecc = LEVELS[rng.int(LEVELS.length)]!;

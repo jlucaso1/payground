@@ -39,7 +39,7 @@ interface Distribution {
   buckets: number[];
 }
 
-/** In-process registry. Counters and histograms only — no gauges are needed yet. */
+/** In-process registry. Counters and histograms only, no gauges are needed yet. */
 export class MetricsRegistry implements MetricsSink {
   private readonly counters = new Map<string, Series>();
   private readonly histograms = new Map<string, Distribution>();

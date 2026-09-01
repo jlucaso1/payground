@@ -6,9 +6,9 @@ import type { Payer, Payment, PaymentError, PaymentMethod } from './payment.ts';
 import type { DeclineReason, PaymentStatus } from './state.ts';
 
 /**
- * How a newly created payment resolves. The domain does not decide this — the provider
+ * How a newly created payment resolves. The domain does not decide this, the provider
  * adapter does, from its own rules (test cardholder names, method behaviour, injected
- * faults) — so no provider logic leaks into the core.
+ * faults), so no provider logic leaks into the core.
  */
 export type PaymentDecision =
   | { readonly kind: 'settle' }

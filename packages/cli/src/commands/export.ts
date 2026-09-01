@@ -8,7 +8,7 @@ export const EXPORT_USAGE = `Usage: payground export [options]
 
 Writes a self-describing JSON snapshot of the sandboxes: credentials, payments, their
 timelines, refunds, documents, webhook deliveries and attempts. Request and audit logs
-are not part of it — they are operational noise, not sandbox state.
+are not part of it, they are operational noise, not sandbox state.
 
   --db <path>       SQLite file (default ${DEFAULT_DB}, env PAYGROUND_DB)
   --sandbox <id>    Export one sandbox instead of every sandbox

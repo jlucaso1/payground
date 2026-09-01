@@ -21,7 +21,7 @@ export function dashboardHandler(root: string) {
     const target = join(root, relative);
     const file = Bun.file(existsSync(target) ? target : join(root, 'index.html'));
     if (!(await file.exists())) {
-      return new Response('dashboard assets not built — run `payground build-dashboard`', { status: 503 });
+      return new Response('dashboard assets not built. Run `payground build-dashboard`', { status: 503 });
     }
 
     const extension = relative.slice(relative.lastIndexOf('.'));

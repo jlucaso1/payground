@@ -13,7 +13,7 @@ import { runSandbox } from './commands/sandbox.ts';
 import { runSeed } from './commands/seed.ts';
 import { runStart } from './commands/start.ts';
 
-export const USAGE = `payground ${VERSION} — a stateful sandbox that speaks the Mercado Pago API
+export const USAGE = `payground ${VERSION}, a stateful sandbox that speaks the Mercado Pago API
 
 Usage: payground <command> [options]
 

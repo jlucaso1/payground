@@ -21,7 +21,7 @@ export interface ModuleDeps {
 
 /**
  * One module per Mercado Pago product. Every spec operation must appear in exactly one
- * module, either in `operations` or in `pending` — `routes.test.ts` enforces it.
+ * module, either in `operations` or in `pending`, `routes.test.ts` enforces it.
  */
 export interface RouteModule {
   name: string;

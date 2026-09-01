@@ -44,7 +44,7 @@ function toDocument(row: Row): StoredDocument {
 
 /**
  * Preferences, orders, customers, tokens and subscriptions have no domain behaviour of
- * their own in V1 — they are provider documents. One table with indexed lookup columns
+ * their own in V1, they are provider documents. One table with indexed lookup columns
  * beats seven near-identical schemas.
  */
 export class SqliteDocumentRepository implements DocumentRepository {

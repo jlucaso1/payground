@@ -29,7 +29,7 @@ export interface ClaimOptions {
 
 /**
  * The storage package keeps its connection private and exposes no leasing query, so the
- * runner reaches for the same handle rather than opening a second one — two connections to
+ * runner reaches for the same handle rather than opening a second one, two connections to
  * one file would not share the busy timeout or the write lock as cheaply.
  */
 export function databaseOf(source: object): Database {

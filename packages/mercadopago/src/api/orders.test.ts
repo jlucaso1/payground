@@ -100,7 +100,7 @@ function recording(): { harness: Harness; events: Recorded[] } {
   return { harness: { ...created, context }, events };
 }
 
-describe('orders — creation', () => {
+describe('orders, creation', () => {
   test('an automatic pix order settles into action_required on creation', () => {
     const { context } = harness();
     const body = order(createOrder(context, pixBody()));
@@ -189,7 +189,7 @@ describe('orders — creation', () => {
   });
 });
 
-describe('orders — validation', () => {
+describe('orders, validation', () => {
   const cases: [string, Record<string, unknown>][] = [
     ['a missing type', { total_amount: '10.00', payer, transactions: { payments: [] } }],
     ['a non-decimal total', pixBody({ total_amount: '100,00' })],
@@ -258,7 +258,7 @@ describe('orders — validation', () => {
   });
 });
 
-describe('orders — card processing', () => {
+describe('orders, card processing', () => {
   test('an approved card settles on creation', () => {
     const { context } = harness();
     const body = order(createOrder(context, cardBody(context)));
@@ -357,7 +357,7 @@ describe('orders — card processing', () => {
   });
 });
 
-describe('orders — refund and cancel', () => {
+describe('orders, refund and cancel', () => {
   const settled = (context: ServiceContext): JsonObject => order(createOrder(context, cardBody(context)));
 
   test('a full refund moves the transaction and the order to refunded', () => {
@@ -421,7 +421,7 @@ describe('orders — refund and cancel', () => {
   });
 });
 
-describe('orders — expiry', () => {
+describe('orders, expiry', () => {
   test('a pix transaction expires on read', () => {
     const { clock, context } = harness();
     const id = order(createOrder(context, pixBody()))['id'] as string;
@@ -445,7 +445,7 @@ describe('orders — expiry', () => {
   });
 });
 
-describe('orders — transactions', () => {
+describe('orders, transactions', () => {
   const manual = (context: ServiceContext): JsonObject =>
     order(
       createOrder(
@@ -570,7 +570,7 @@ describe('orders — transactions', () => {
   });
 });
 
-describe('orders — search', () => {
+describe('orders, search', () => {
   test('filters by external reference, status and date window, and pages', () => {
     const { clock, context } = harness();
     const start = clock.now();
@@ -622,7 +622,7 @@ describe('orders — search', () => {
   });
 });
 
-describe('orders — derived status', () => {
+describe('orders, derived status', () => {
   const derived = (...states: OrderState[]): [string, string] => {
     const result = deriveStatus(states);
     return [result.status, result.detail];
@@ -688,7 +688,7 @@ describe('orders — derived status', () => {
   });
 });
 
-describe('orders — fuzz over random order shapes', () => {
+describe('orders, fuzz over random order shapes', () => {
   const METHODS = [
     { id: 'pix', type: 'bank_transfer' },
     { id: 'bolbradesco', type: 'ticket' },

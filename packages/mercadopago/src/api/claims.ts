@@ -123,7 +123,7 @@ const MAX_ATTACHMENTS = 5;
 const MAX_MESSAGE_LENGTH = 2_000;
 
 /**
- * Reason codes are a fixed per-site catalogue and there is no endpoint that lists them —
+ * Reason codes are a fixed per-site catalogue and there is no endpoint that lists them -
  * only GET /post-purchase/v1/claims/reasons/{reason_id} resolves one. payground commits
  * the codes the Brazilian post-purchase flow issues, in the published `AAA0000` shape.
  * https://www.mercadopago.com.br/developers/en/reference/claims/get-claim-reason/get
@@ -431,7 +431,7 @@ const tooLate = (state: ClaimState): ErrorBody =>
   unprocessable('the claim is no longer open', [{ code: 4054, description: `claim_${state}` }]);
 
 /**
- * The real API has no public create endpoint — a claim is opened by the buyer from the
+ * The real API has no public create endpoint, a claim is opened by the buyer from the
  * Mercado Pago front end. payground exposes creation so a test or the dashboard can put a
  * sandbox into the post-purchase flow at all.
  */
@@ -836,7 +836,7 @@ export type ClaimOutcome = 'complainant' | 'respondent';
 /**
  * A mediation ends before the money moves: `resolve` is the only command the domain allows
  * from `in_mediation`, so the hold is lifted first and a buyer win is then settled with a
- * real refund — Mercado Pago refunds a claim resolved for the buyer, a chargeback is the
+ * real refund, Mercado Pago refunds a claim resolved for the buyer, a chargeback is the
  * card network's path and not this one. The payment may already have left mediation through
  * the control API, so the claim closes either way rather than wedging in `dispute`.
  */

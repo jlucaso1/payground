@@ -50,7 +50,7 @@ describe('official SDK against payground', () => {
    * `Payment.create` assigns `this.config.options = {...this.config.options, ...requestOptions}`,
    * so a per-call idempotency key is pinned onto the client for every later request. Use a
    * throwaway client, otherwise every subsequent create reuses the key and gets a 409.
-   * https://github.com/mercadopago/sdk-nodejs — clients/payment/index.js
+   * https://github.com/mercadopago/sdk-nodejs, clients/payment/index.js
    */
   test('reusing an idempotency key replays instead of creating a second payment', async () => {
     const key = crypto.randomUUID();

@@ -109,8 +109,8 @@ export interface RunnerOptions extends AttemptOptions {
 }
 
 /**
- * Names the instance in the lease. Correctness does not rest on it being unique — a lease
- * is ended only by the holder of its exact expiry stamp — so a process id, which needs
+ * Names the instance in the lease. Correctness does not rest on it being unique, a lease
+ * is ended only by the holder of its exact expiry stamp, so a process id, which needs
  * neither the clock nor randomness, is enough to tell instances apart while reading rows.
  */
 /**

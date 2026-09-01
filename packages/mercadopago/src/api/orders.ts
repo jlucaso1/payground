@@ -25,9 +25,9 @@ import { decide } from './decision.ts';
 import { PIX_DEFAULT_TTL_MS, VOUCHER_DEFAULT_TTL_MS } from './methods.ts';
 
 /**
- * Orders API. Its status vocabulary is its own — `created / processed / processing /
+ * Orders API. Its status vocabulary is its own, `created / processed / processing /
  * action_required / in_review / charged_back / expired / refunded / failed / canceled`,
- * each with its own detail — and is not the Payments API vocabulary.
+ * each with its own detail, and is not the Payments API vocabulary.
  * https://www.mercadopago.com.br/developers/en/docs/checkout-api-orders/payment-management/status/transaction-status
  */
 export type OrderStatus =
@@ -97,7 +97,7 @@ const MAX_SEARCH_SCAN = 1_000;
 const DEFAULT_SEARCH_LIMIT = 30;
 
 // ---------------------------------------------------------------------------
-// money — the Orders API carries every amount as a decimal string.
+// money, the Orders API carries every amount as a decimal string.
 // ---------------------------------------------------------------------------
 
 const AMOUNT_PATTERN = /^\d+(?:\.\d{1,2})?$/;

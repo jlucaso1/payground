@@ -239,12 +239,12 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
   }
   env.io.out(
     dashboardRoot === null
-      ? label('dashboard', 'not served — run `payground build-dashboard`')
+      ? label('dashboard', 'not served: run `payground build-dashboard`')
       : label('dashboard', `${origin}${DASHBOARD_PATH}`),
   );
   env.io.out(
     adminToken === null
-      ? label('admin token', 'disabled — the control API is open')
+      ? label('admin token', 'disabled, the control API is open')
       : label('admin token', adminToken),
   );
   env.io.out(
@@ -252,14 +252,14 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
       ? label('rate limit', 'off')
       : label('rate limit', `${rateLimit.value.ratePerSecond}/s per sandbox, burst ${rateLimit.value.burst}`),
   );
-  if (flag(parsed.values, 'strict')) env.io.out(label('strict mode', 'on — requests are validated against the specification'));
+  if (flag(parsed.values, 'strict')) env.io.out(label('strict mode', 'on: requests are validated against the specification'));
   env.io.out(label('health', `${origin}/_payground/health`));
 
   let retention: Retention | null = null;
   let retentionDb: ReturnType<Env['openDatabase']> | null = null;
   if (retentionDays !== null) {
     if (db === MEMORY) {
-      env.io.out(label('retention', `disabled — ${MEMORY} keeps nothing to prune`));
+      env.io.out(label('retention', `disabled: ${MEMORY} keeps nothing to prune`));
     } else {
       try {
         retentionDb = env.openDatabase(db);

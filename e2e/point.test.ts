@@ -32,7 +32,7 @@ const drive = async (intentId: string, command: string): Promise<number> => {
 /**
  * The SDK's `Device` type is a copy of the payment-intent event shape: it declares
  * `payment_intent_id`, `status` and `created_on`, none of which the endpoint returns.
- * https://github.com/mercadopago/sdk-nodejs — dist/clients/point/commonTypes.d.ts
+ * https://github.com/mercadopago/sdk-nodejs, dist/clients/point/commonTypes.d.ts
  */
 const firstDeviceId = async (): Promise<string> => {
   const listed = await point.getDevices({ request: {} });

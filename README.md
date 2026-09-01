@@ -332,7 +332,7 @@ payground doctor --db ci.sqlite            # or --format json, or --sandbox <id>
 ```
 
 ```
-payground doctor — 2 requests recorded in ci.sqlite
+payground doctor: 2 requests recorded in ci.sqlite
 
 Operations used
   createPayment                   1  emulated (payments)
@@ -340,18 +340,18 @@ Operations used
 
 Requests the real API would reject
   POST /v1/payments  1 call  (PaymentRequest)
-    not_a_real_field — not documented by the specification
+    not_a_real_field: not documented by the specification
 
 Responses payground emits that the specification does not describe
   searchPayments 200  1 call
-    results[].id — expected integer
+    results[].id: expected integer
 
 Known divergences you are exposed to
-  Payments — Payment `id` is a number on the resource and a string in search results
-    https://github.com/mercadopago/sdk-nodejs — clients/payment/search/types.ts
-  [20 more]
+  Payments: Payment `id` is a number on the resource and a string in search results
+    https://github.com/mercadopago/sdk-nodejs, clients/payment/search/types.ts
+  [24 more]
 
-Verdict: 1 blocking finding — this breaks against https://api.mercadopago.com:
+Verdict: 1 blocking finding. This breaks against https://api.mercadopago.com:
   - 1 call to POST /v1/payments sends a body the real API would refuse: not_a_real_field not documented by the specification
 ```
 

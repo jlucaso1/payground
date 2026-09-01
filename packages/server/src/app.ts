@@ -38,7 +38,7 @@ export interface AppOptions {
   /** Milliseconds between webhook queue drains. 0 disables the runner (tests drive it). */
   deliveryIntervalMs?: number;
   /**
-   * Self-host defaults to allowing webhook targets on private addresses — delivering to
+   * Self-host defaults to allowing webhook targets on private addresses, because delivering to
    * localhost is the point. A public multi-tenant deployment must set this to false so
    * user-supplied URLs cannot reach internal services.
    */
@@ -51,7 +51,7 @@ export interface AppOptions {
   historyBodyLimit?: number;
   /**
    * Gates the whole control API. Null or empty leaves it open, which is only safe for a
-   * private local instance — a shared one must set it.
+   * private local instance. A shared one must set it.
    */
   adminToken?: string | null;
   /** Directory holding the prebuilt dashboard. Omitted means the dashboard is not served. */

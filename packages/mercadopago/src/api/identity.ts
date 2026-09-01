@@ -196,7 +196,7 @@ const readString = (body: Record<string, unknown>, key: string): string | null =
 };
 
 /**
- * There is nowhere to persist an OAuth grant — a sandbox holds a single credential pair —
+ * There is nowhere to persist an OAuth grant, a sandbox holds a single credential pair -
  * so the refresh token is derived from the sandbox and validated by recomputation.
  */
 export const refreshTokenFor = (context: ServiceContext): string =>
@@ -278,7 +278,7 @@ function collectorCpf(collectorId: number): string {
 /**
  * `GET /users/me` is absent from spec3.json but the official SDK's `user` client calls it,
  * so payground answers it. Shape from sdk-nodejs clients/user/get/types.ts.
- * https://github.com/mercadopago/sdk-nodejs — clients/user/get/types.ts
+ * https://github.com/mercadopago/sdk-nodejs, clients/user/get/types.ts
  */
 export function getCollectorUser(context: ServiceContext): Result<Rendered, ErrorBody> {
   const id = context.collectorId;

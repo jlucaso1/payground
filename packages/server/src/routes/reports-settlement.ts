@@ -34,8 +34,8 @@ export const reportsSettlement: RouteModule = {
   pending: [],
   routes: ({ runtime, param }) => {
     /**
-     * The CSV is not JSON, so the file rides through `endpoint` — which owns authentication,
-     * rate limiting, injected faults, metrics and the request history — and is unwrapped
+     * The CSV is not JSON, so the file rides through `endpoint`, which owns authentication,
+     * rate limiting, injected faults, metrics and the request history, and is unwrapped
      * afterwards, rather than reimplementing any of that here.
      */
     const file = endpoint(runtime, ({ service, request }) => {

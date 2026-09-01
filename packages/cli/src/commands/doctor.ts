@@ -20,11 +20,11 @@ Exits 1 when there are blocking findings, so it can gate a pipeline.`;
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 export function render(report: ParityReport, database: string): string[] {
-  const lines: string[] = [`payground doctor — ${plural(report.requests, 'request')} recorded in ${database}`];
+  const lines: string[] = [`payground doctor: ${plural(report.requests, 'request')} recorded in ${database}`];
   if (report.sandbox !== null) lines.push(`sandbox ${report.sandbox}`);
 
   lines.push('', 'Operations used');
-  if (report.operations.length === 0) lines.push('  none — the history holds no call to a documented endpoint');
+  if (report.operations.length === 0) lines.push('  none: the history holds no call to a documented endpoint');
   for (const operation of report.operations) {
     const state = operation.state === 'emulated' ? 'emulated' : 'PENDING ';
     const reason = operation.state === 'pending' && operation.reason !== undefined ? `: ${operation.reason}` : '';
@@ -35,7 +35,7 @@ export function render(report: ParityReport, database: string): string[] {
     lines.push('', 'Requests the real API would reject');
     for (const rejection of report.rejected) {
       lines.push(`  ${rejection.method} ${rejection.route}  ${plural(rejection.calls, 'call')}  (${rejection.schema})`);
-      for (const issue of rejection.issues) lines.push(`    ${issue.path} — ${issue.message}`);
+      for (const issue of rejection.issues) lines.push(`    ${issue.path}: ${issue.message}`);
     }
   }
 
@@ -43,7 +43,7 @@ export function render(report: ParityReport, database: string): string[] {
     lines.push('', 'Responses payground emits that the specification does not describe');
     for (const drift of report.responseDrift) {
       lines.push(`  ${drift.operationId} ${drift.status}  ${plural(drift.calls, 'call')}`);
-      for (const issue of drift.issues) lines.push(`    ${issue.path} — ${issue.message}`);
+      for (const issue of drift.issues) lines.push(`    ${issue.path}: ${issue.message}`);
     }
   }
 
@@ -55,7 +55,7 @@ export function render(report: ParityReport, database: string): string[] {
   if (report.divergences.length > 0) {
     lines.push('', 'Known divergences you are exposed to');
     for (const divergence of report.divergences) {
-      lines.push(`  ${divergence.area} — ${divergence.summary}`);
+      lines.push(`  ${divergence.area}: ${divergence.summary}`);
       lines.push(`    ${divergence.source}`);
     }
   }
@@ -66,7 +66,7 @@ export function render(report: ParityReport, database: string): string[] {
     lines.push('body you sent is one the real API accepts.');
   } else {
     lines.push(
-      `Verdict: ${plural(report.verdict.findings.length, 'blocking finding')} — this breaks against https://api.mercadopago.com:`,
+      `Verdict: ${plural(report.verdict.findings.length, 'blocking finding')}. This breaks against https://api.mercadopago.com:`,
     );
     for (const finding of report.verdict.findings) lines.push(`  - ${finding}`);
   }

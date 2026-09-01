@@ -10,7 +10,7 @@ import type { Rendered, ServiceContext } from './context.ts';
 /**
  * Tokenisation is the only place raw card data appears, and payground never keeps it:
  * only the BIN, the last four digits, the expiry and the cardholder are persisted.
- * Real card data must never be sent here — payground is a sandbox, use the documented
+ * Real card data must never be sent here, payground is a sandbox, use the documented
  * test cards. https://www.mercadopago.com.br/developers/en/docs/your-integrations/test/cards
  */
 

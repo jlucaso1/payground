@@ -117,8 +117,8 @@ interface Rejection {
 
 /**
  * Credentials are checked first, so strict mode never turns a 401 into a 400, and an
- * injected outage still wins. Everything else `endpoint()` does — the rate limiter, the
- * fault latency and error rate, an idempotent replay — happens after this check, because
+ * injected outage still wins. Everything else `endpoint()` does, the rate limiter, the
+ * fault latency and error rate, an idempotent replay, happens after this check, because
  * validation has to run before the handler can act on the body.
  */
 function refuse(runtime: AppRuntime, request: Request, url: URL, schema: string, raw: string): Rejection | null {

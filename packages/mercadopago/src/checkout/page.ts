@@ -24,8 +24,8 @@ interface Option {
 /** The payment type each option produces, so `excluded_payment_types` can hide it. */
 const OPTIONS: readonly Option[] = [
   { outcome: 'pix', paymentType: 'bank_transfer', label: 'Pay with Pix (stays pending until settled)' },
-  { outcome: 'card_approved', paymentType: 'credit_card', label: 'Pay by card — approved' },
-  { outcome: 'card_rejected', paymentType: 'credit_card', label: 'Pay by card — rejected' },
+  { outcome: 'card_approved', paymentType: 'credit_card', label: 'Pay by card, approved' },
+  { outcome: 'card_rejected', paymentType: 'credit_card', label: 'Pay by card, rejected' },
   { outcome: 'pending', paymentType: 'ticket', label: 'Pay by ticket (leave pending)' },
 ];
 

@@ -142,7 +142,7 @@ export function AdminScreen(): ReactNode {
   return (
     <Section title="Accounts">
       <p className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-        Test credentials only. payground emulates Mercado Pago and stores everything in plain text —
+        Test credentials only. payground emulates Mercado Pago and stores everything in plain text -
         never send real card numbers, real personal data or production tokens to this server.
       </p>
 

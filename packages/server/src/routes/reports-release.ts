@@ -39,7 +39,7 @@ export const reportsRelease: RouteModule = {
 
     /**
      * The file is CSV, so it cannot go through the JSON `endpoint` wrapper; the guards that
-     * wrapper applies — auth, faults, rate limiting, metrics and request history — are repeated
+     * wrapper applies, auth, faults, rate limiting, metrics and request history, are repeated
      * here so the download is not the one spec operation that escapes them.
      */
     const serve = async (

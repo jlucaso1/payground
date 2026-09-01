@@ -1,8 +1,12 @@
 import {
+  type AuditActor,
+  type AuditLog,
   type FaultProfile,
   type Payment,
   type PaymentCommand,
+  type JsonObject,
   type Sandbox,
+  type SandboxId,
   type SandboxStore,
   type WebhookDelivery,
   type WebhookDeliveryId,
@@ -80,6 +84,28 @@ export interface ControlDeps {
   uuid: () => string;
   /** Queues the notification a state change would produce on the real API. */
   notify: (sandbox: Sandbox, action: string, dataId: string, notificationUrl: string | null) => void;
+  /** Optional so an embedder can opt out; the app passes `storage.audit`. */
+  audit?: AuditLog;
+  /** Every control-API call is admin-gated, so that is the default actor. */
+  actor?: AuditActor;
+}
+
+function audit(
+  deps: ControlDeps,
+  action: string,
+  target: string,
+  sandbox: SandboxId | null,
+  detail: JsonObject = {},
+): void {
+  deps.audit?.record({
+    id: deps.uuid(),
+    at: deps.now(),
+    actor: deps.actor ?? { kind: 'admin' },
+    action,
+    target,
+    sandbox,
+    detail,
+  });
 }
 
 export function listSandboxes(deps: ControlDeps): ControlResult {
@@ -98,6 +124,7 @@ export function createSandbox(deps: ControlDeps, body: unknown): ControlResult {
     createdAt: deps.now(),
   };
   deps.storage.sandboxes.create(sandbox);
+  audit(deps, 'sandbox.created', sandbox.id, sandbox.id, { name });
   return { status: 201, body: publicSandbox(sandbox) };
 }
 
@@ -126,12 +153,14 @@ export function getSandbox(deps: ControlDeps, id: string): ControlResult {
 export function resetSandbox(deps: ControlDeps, id: string): ControlResult {
   if (resolve(deps, id) === null) return fail(404, 'sandbox not found');
   deps.storage.sandboxes.reset(sandboxId(id));
+  audit(deps, 'sandbox.reset', id, sandboxId(id));
   return { status: 200, body: { ok: true } };
 }
 
 export function deleteSandbox(deps: ControlDeps, id: string): ControlResult {
   if (resolve(deps, id) === null) return fail(404, 'sandbox not found');
   deps.storage.sandboxes.remove(sandboxId(id));
+  audit(deps, 'sandbox.deleted', id, sandboxId(id));
   return { status: 200, body: { ok: true } };
 }
 
@@ -248,6 +277,13 @@ export function actOnPayment(
     result.value.payment.notificationUrl,
   );
 
+  audit(deps, 'payment.forced', payment.id, found.sandbox.id, {
+    command: command.type,
+    from: result.value.from.state,
+    to: result.value.to.state,
+    reason: result.value.to.reason,
+  });
+
   return { status: 200, body: { payment: paymentView(result.value.payment, found.store) } };
 }
 
@@ -270,6 +306,7 @@ export function replayWebhook(deps: ControlDeps, id: string, deliveryId: string)
     nextAttemptAt: deps.now(),
     updatedAt: deps.now(),
   });
+  audit(deps, 'webhook.replayed', delivery.id, found.sandbox.id, { event: delivery.event, url: delivery.url });
   return { status: 200, body: { ok: true } };
 }
 
@@ -298,5 +335,6 @@ export function setFaults(deps: ControlDeps, id: string, body: unknown): Control
     webhookFailureRate: Math.min(Math.max(number('webhookFailureRate', current.webhookFailureRate), 0), 1),
   };
   found.store.faults.set(profile);
+  audit(deps, 'faults.updated', found.sandbox.id, found.sandbox.id, { ...profile });
   return { status: 200, body: profile };
 }

@@ -64,6 +64,17 @@ describe('createCustomer', () => {
     expect(customer.default_card).toBeUndefined();
   });
 
+  test('stores the folded email, so the stored value is the one search matches', () => {
+    const { context } = harness();
+    const customer = unwrap(createCustomer(context, customerBody({ email: '  Buyer@Example.com  ' })))
+      .body as Customer;
+
+    expect(customer.email).toBe('buyer@example.com');
+    const found = unwrap(searchCustomers(context, new URLSearchParams({ email: customer.email as string })))
+      .body as CustomerSearchResult;
+    expect(found.results?.map((entry) => entry.id)).toEqual([customer.id as string]);
+  });
+
   test('rejects a body without a usable email', () => {
     const { context } = harness();
     expect(failure(createCustomer(context, { first_name: 'Ada' })).status).toBe(400);
@@ -100,6 +111,22 @@ describe('searchCustomers', () => {
       .body as CustomerSearchResult;
     expect(paged.paging).toEqual({ total: 2, limit: 1, offset: 1 });
     expect(paged.results).toHaveLength(1);
+  });
+
+  test('the page is taken by the query, so every offset stays reachable', () => {
+    const { context } = harness();
+    for (let index = 0; index < 12; index++) newCustomer(context, { email: `buyer-${index}@example.com` });
+
+    const emails = (offset: number, limit: number): (string | undefined)[] =>
+      (
+        unwrap(searchCustomers(context, new URLSearchParams({ limit: String(limit), offset: String(offset) })))
+          .body as CustomerSearchResult
+      ).results?.map((customer) => customer.email) ?? [];
+
+    expect(emails(0, 5)).toHaveLength(5);
+    expect(emails(10, 5)).toEqual(['buyer-10@example.com', 'buyer-11@example.com']);
+    expect(emails(12, 5)).toEqual([]);
+    expect(new Set([...emails(0, 6), ...emails(6, 6)]).size).toBe(12);
   });
 });
 
@@ -206,9 +233,14 @@ describe('saveCard', () => {
       expiration_year: 2031,
       cardholder: { name: 'GRACE HOPPER', identification: { type: 'CPF', number: '12345678909' } },
     });
+    for (const bad of [{ expiration_month: 13 }, { expiration_year: 3 }, { expiration_year: 2019 }]) {
+      expect(failure(updateCard(context, customer.id as string, card.id as string, bad)).status).toBe(400);
+    }
+    // A two digit year is the checkout brick's spelling of the same expiry.
     expect(
-      failure(updateCard(context, customer.id as string, card.id as string, { expiration_month: 13 })).status,
-    ).toBe(400);
+      (unwrap(updateCard(context, customer.id as string, card.id as string, { expiration_year: 31 })).body as Card)
+        .expiration_year,
+    ).toBe(2031);
   });
 });
 
@@ -232,6 +264,8 @@ describe('addresses', () => {
     const address = created.body as Address;
     expect(validateAddress(address).ok).toBe(true);
     expect(address).toMatchObject({ zip_code: '01310100', neighborhood: 'Bela Vista' });
+    // Absent fields are omitted, never emitted as null.
+    expect(Object.values(address)).not.toContain(null);
     expect(address.id).toMatch(/^\d+$/);
 
     expect(unwrap(listCustomerAddresses(context, id)).body).toHaveLength(1);

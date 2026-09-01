@@ -35,6 +35,9 @@ const issues = (found: { path: string; message: string }[]): ErrorBody =>
 
 /* ------------------------------------------------------------------ documents */
 
+const normalizeYear = (year: number | null): number | null =>
+  year === null || year >= 100 ? year : 2000 + year;
+
 const nullableString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
 function phoneDoc(phone: Phone | undefined): JsonObject | null {
@@ -85,8 +88,8 @@ function serializeAddressFields(doc: JsonObject): Address {
     city: optional(readString(doc, 'city')),
     state: optional(readString(doc, 'state')),
     country: optional(readString(doc, 'country')),
-    neighborhood: readString(doc, 'neighborhood'),
-    comments: readString(doc, 'comments'),
+    neighborhood: optional(readString(doc, 'neighborhood')),
+    comments: optional(readString(doc, 'comments')),
   });
 }
 
@@ -222,7 +225,7 @@ export function createCustomer(context: ServiceContext, body: unknown): Result<R
     createdAt: now,
     updatedAt: now,
     expiresAt: null,
-    doc: customerDoc({ ...request, email }),
+    doc: customerDoc({ ...request, email: key }),
   };
   context.store.documents.insert(document);
 
@@ -261,7 +264,7 @@ export function updateCustomer(context: ServiceContext, id: string, body: unknow
     updatedAt: context.clock.now(),
     doc: {
       ...current,
-      email: request.email ?? current['email'] ?? null,
+      email: request.email === undefined ? (current['email'] ?? null) : foldEmail(request.email),
       first_name: request.first_name ?? current['first_name'] ?? null,
       last_name: request.last_name ?? current['last_name'] ?? null,
       phone: phoneDoc(request.phone) ?? current['phone'] ?? null,
@@ -296,10 +299,11 @@ export function searchCustomers(context: ServiceContext, params: URLSearchParams
   const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
 
   const email = params.get('email');
+  // Nothing is filtered after the query, so the page is taken in SQL and stays reachable past PAGE_CAP.
   const found = context.store.documents.search('customer', {
     ...(email === null || email === '' ? {} : { lookup: foldEmail(email) }),
-    limit: PAGE_CAP,
-    offset: 0,
+    limit,
+    offset,
     order: 'asc',
   });
 
@@ -307,7 +311,7 @@ export function searchCustomers(context: ServiceContext, params: URLSearchParams
     status: 200,
     body: {
       paging: { total: found.total, limit, offset },
-      results: found.results.slice(offset, offset + limit).map((document) => serializeCustomer(context, document)),
+      results: found.results.map((document) => serializeCustomer(context, document)),
     },
   });
 }
@@ -414,13 +418,19 @@ export function updateCard(
   if (!validated.ok) return err(issues(validated.error));
   const request = validated.value;
 
-  const month = request.expiration_month;
-  if (month !== undefined && (!Number.isInteger(month) || month < 1 || month > 12)) {
-    return err(invalid('expiration_month invalid', 2004));
-  }
-
   const document = located.value;
   const current = document.doc;
+
+  const month = request.expiration_month ?? readNumber(current, 'expiration_month');
+  const year = normalizeYear(request.expiration_year ?? readNumber(current, 'expiration_year'));
+  if (month === null || !Number.isInteger(month) || month < 1 || month > 12) {
+    return err(invalid('expiration_month invalid', 2004));
+  }
+  // A card is usable through the last instant of its expiry month.
+  if (year === null || !Number.isInteger(year) || Date.UTC(year, month, 1) <= context.clock.now()) {
+    return err(invalid('expiration_year invalid', 2004));
+  }
+
   const identification =
     request.cardholder?.identification === undefined
       ? (current['identification'] ?? null)
@@ -431,8 +441,8 @@ export function updateCard(
     updatedAt: context.clock.now(),
     doc: {
       ...current,
-      expiration_month: month ?? current['expiration_month'] ?? null,
-      expiration_year: request.expiration_year ?? current['expiration_year'] ?? null,
+      expiration_month: month,
+      expiration_year: year,
       cardholder_name: request.cardholder?.name ?? current['cardholder_name'] ?? null,
       identification,
     },

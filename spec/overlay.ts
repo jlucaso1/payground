@@ -142,7 +142,7 @@ export const OVERLAY: readonly OverlayEntry[] = [
   },
   {
     schema: 'Address',
-    note: 'The spec models Address as the street fields only, so a customer address has no identity: the create response, the list entries and the update target all need an id, and the API also returns the neighborhood, the free-form comments and the audit timestamps.',
+    note: 'The spec models Address as the street fields only, so a customer address has no identity: the create response, the list entries and the update target all need an id, and the API also returns the neighborhood, the free-form comments and the audit timestamps. Address is shared with Payer, Customer and PreferenceShipments.receiver_address, so payground also tolerates these fields wherever an address is accepted, which the real API models only on a customer address.',
     source:
       'https://www.mercadopago.com.br/developers/en/reference/customer_addresses/_customers_customer_id_addresses/post',
     properties: {

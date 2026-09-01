@@ -2570,6 +2570,14 @@ export function checkReportConfig(value: unknown, path: string, out: Issue[]): v
         }
       }
     }
+    const v20: unknown = value["column_separator"];
+    if (v20 !== undefined) {
+      if (v20 !== "," && v20 !== ";" && v20 !== "\t") out.push({ path: path + ".column_separator", message: 'not one of the allowed values' });
+    }
+    const v21: unknown = value["scheduled"];
+    if (v21 !== undefined) {
+      if (typeof v21 !== 'boolean') out.push({ path: path + ".scheduled", message: 'expected boolean' });
+    }
   }
 }
 
@@ -2636,6 +2644,12 @@ export function checkReportTask(value: unknown, path: string, out: Issue[]): voi
     if (v7 !== undefined) {
       if (v7 !== null) {
         if (typeof v7 !== 'string') out.push({ path: path + ".download_url", message: 'expected string' });
+      }
+    }
+    const v8: unknown = value["file_name"];
+    if (v8 !== undefined) {
+      if (v8 !== null) {
+        if (typeof v8 !== 'string') out.push({ path: path + ".file_name", message: 'expected string' });
       }
     }
   }

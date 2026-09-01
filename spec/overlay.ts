@@ -167,6 +167,25 @@ export const OVERLAY: readonly OverlayEntry[] = [
       },
     },
   },
+  {
+    schema: 'ReportConfig',
+    note: 'The spec names the delimiter `separator` and omits the scheduling flag. The account report endpoints read `column_separator` (which also accepts a tab) and report whether the schedule is enabled.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report_config/post',
+    properties: {
+      column_separator: { type: 'string', enum: [',', ';', '\t'] },
+      scheduled: { type: 'boolean' },
+    },
+  },
+  {
+    schema: 'ReportTask',
+    note: 'The task resource carries the name of the file it produces, which is the path segment the download endpoint takes; the spec exposes only the download URL.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report/post',
+    properties: {
+      file_name: { type: ['string', 'null'] },
+    },
+  },
 ];
 
 export const DIVERGENCES: readonly Divergence[] = [
@@ -220,5 +239,13 @@ export const DIVERGENCES: readonly Divergence[] = [
     detail:
       'fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.',
     source: 'https://github.com/mercadopago/openapi — fixtures3.yaml',
+  },
+  {
+    area: 'Settlement report',
+    summary: 'Fee and tax columns are always zero because payground charges no fees',
+    detail:
+      'MP_FEE_AMOUNT, FINANCING_FEE_AMOUNT and TAXES_AMOUNT are emitted as 0.00 and SETTLEMENT_NET_AMOUNT equals TRANSACTION_AMOUNT. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a fee here would make the report disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/your-integrations/reports/settlement-report/columns',
   },
 ];

@@ -34,6 +34,22 @@ Added: `payment_method_id`, `three_ds_mode`, `point_of_interaction`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/payments/_payments/post
 
+### `ReportConfig`
+
+The spec names the delimiter `separator` and omits the scheduling flag. The account report endpoints read `column_separator` (which also accepts a tab) and report whether the schedule is enabled.
+
+Added: `column_separator`, `scheduled`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report_config/post
+
+### `ReportTask`
+
+The task resource carries the name of the file it produces, which is the path segment the download endpoint takes; the spec exposes only the download URL.
+
+Added: `file_name`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report/post
+
 ## Behavioural divergences
 
 ### Payments — Payment `id` is a number on the resource and a string in search results
@@ -77,4 +93,10 @@ Source: https://github.com/mercadopago/sdk-nodejs — dist/clients/payment/index
 fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.
 
 Source: https://github.com/mercadopago/openapi — fixtures3.yaml
+
+### Settlement report — Fee and tax columns are always zero because payground charges no fees
+
+MP_FEE_AMOUNT, FINANCING_FEE_AMOUNT and TAXES_AMOUNT are emitted as 0.00 and SETTLEMENT_NET_AMOUNT equals TRANSACTION_AMOUNT. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a fee here would make the report disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds.
+
+Source: https://www.mercadopago.com.br/developers/en/docs/your-integrations/reports/settlement-report/columns
 

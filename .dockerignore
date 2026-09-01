@@ -1,10 +1,25 @@
+# Docker matches these against the root of the context only, unless prefixed with `**/`.
 .git
 .github
-**/node_modules
-dist
+.claude
 docs
-*.sqlite
-*.sqlite-*
-.payground
 Dockerfile
+.dockerignore
 docker-compose.yml
+
+**/node_modules
+# Build outputs are regenerated inside the image; a stale local copy must not leak in.
+**/dist
+
+# Build-time only: nothing in the image runs the suites.
+**/*.test.ts
+**/*.test.tsx
+e2e/*.ts
+
+**/.payground
+**/*.sqlite
+**/*.sqlite-*
+
+# Compose reads the admin token from here; it has no business in a build context.
+**/.env
+**/.env.*

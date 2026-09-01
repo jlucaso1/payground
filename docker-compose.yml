@@ -5,11 +5,19 @@ services:
     ports:
       - "8080:8080"
     environment:
-      PAYGROUND_DB: /data/payground.sqlite
-      PAYGROUND_HOST: 0.0.0.0
-      PAYGROUND_PORT: "8080"
+      - PAYGROUND_DB=/data/payground.sqlite
+      - PAYGROUND_HOST=0.0.0.0
+      - PAYGROUND_PORT=8080
       # Public origin used in Pix payloads and ticket URLs.
-      PAYGROUND_BASE_URL: http://127.0.0.1:8080
+      - PAYGROUND_BASE_URL=http://127.0.0.1:8080
+      # Passed through from the host only when it is set there, because `start` mints a
+      # fresh token on every boot and `restart: unless-stopped` would keep invalidating
+      # the one the operator saved. To pin it, put a value in a `.env` next to this file;
+      # leave it out entirely and `docker compose logs payground` prints the generated one.
+      # Never write it empty: `PAYGROUND_ADMIN_TOKEN=` is passed through as "", which the
+      # control API reads as "no token required" instead of refusing to start. That is
+      # also why no `${...:-default}` is used here, since it would substitute "" when unset.
+      - PAYGROUND_ADMIN_TOKEN
     volumes:
       - payground-data:/data
     restart: unless-stopped

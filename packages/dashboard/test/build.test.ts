@@ -15,23 +15,26 @@ test(
   async () => {
     const result = await buildDashboard({ outdir, minify: false });
 
-    const files = await readdir(outdir);
+    // Chunks live under assets/ with root-absolute URLs, because the dashboard is served
+    // from /_payground and a relative ./chunk.js would resolve to /chunk.js.
+    const files = await readdir(outdir, { recursive: true });
     const html = files.filter((name) => name.endsWith('.html'));
     const css = files.filter((name) => name.endsWith('.css'));
     const js = files.filter((name) => name.endsWith('.js'));
 
-    expect(html.length).toBeGreaterThan(0);
-    expect(css.length).toBe(1);
+    expect(html).toEqual(['index.html']);
+    expect(css).toHaveLength(1);
     expect(js.length).toBeGreaterThan(0);
-    expect(result.files.length).toBe(files.length);
+    for (const chunk of [...css, ...js]) expect(chunk.startsWith('assets/')).toBe(true);
+    expect(result.files.length).toBe(css.length + js.length + html.length);
 
-    const htmlName = html[0];
     const cssName = css[0];
-    if (htmlName === undefined || cssName === undefined) throw new Error('missing output');
+    if (cssName === undefined) throw new Error('missing output');
 
-    const htmlText = await Bun.file(join(outdir, htmlName)).text();
+    const htmlText = await Bun.file(join(outdir, 'index.html')).text();
     expect(htmlText).toContain('<div id="root">');
-    expect(htmlText).toContain('.css');
+    expect(htmlText).toContain('/_payground/assets/');
+    expect(htmlText).not.toContain('"./chunk');
 
     const cssText = await Bun.file(join(outdir, cssName)).text();
     expect(cssText).toContain('@layer theme');

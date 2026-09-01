@@ -10,16 +10,11 @@ updates:
         patterns:
           - "*"
 
-  # The npm ecosystem covers the Bun workspace. payground has no runtime
-  # dependencies, so every update here is a devDependency.
-  - package-ecosystem: npm
-    directories:
-      - /
-      - /e2e
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
-    groups:
-      dev-dependencies:
-        patterns:
-          - "*"
+  # Package updates are deliberately not automated. payground has no runtime
+  # dependencies, so the only surface is devDependencies (TypeScript, React,
+  # Tailwind, type packages), and neither ecosystem handles this repo correctly:
+  # the npm updater edits package.json without touching bun.lock, which then
+  # fails CI's --frozen-lockfile, and the bun updater currently rewrites fields
+  # it does not understand.
+  # https://github.com/dependabot/dependabot-core/issues/13623
+  # https://github.com/dependabot/dependabot-core/issues/15848

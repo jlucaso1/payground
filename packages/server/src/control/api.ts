@@ -107,6 +107,22 @@ function resolve(deps: ControlDeps, id: string): { sandbox: Sandbox; store: Sand
   return { sandbox, store: deps.storage.forSandbox(sandbox.id) };
 }
 
+export function getSandbox(deps: ControlDeps, id: string): ControlResult {
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+  const payments = found.store.payments.search({ limit: 1 });
+  return {
+    status: 200,
+    body: {
+      ...publicSandbox(found.sandbox),
+      counts: {
+        payments: payments.total,
+        webhooks: found.store.webhooks.list(1000).length,
+      },
+    },
+  };
+}
+
 export function resetSandbox(deps: ControlDeps, id: string): ControlResult {
   if (resolve(deps, id) === null) return fail(404, 'sandbox not found');
   deps.storage.sandboxes.reset(sandboxId(id));

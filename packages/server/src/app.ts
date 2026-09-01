@@ -4,6 +4,7 @@ import { Storage } from '@payground/storage';
 import { dashboardHandler } from './dashboard.ts';
 import { health } from './health.ts';
 import * as control from './control/api.ts';
+import { requireAdmin } from './control/auth.ts';
 import { MODULES } from './routes/index.ts';
 import type { ModuleDeps } from './routes/module.ts';
 import { type AppRuntime, contextFor } from './http/handler.ts';
@@ -32,6 +33,11 @@ export interface AppOptions {
    * user-supplied URLs cannot reach internal services.
    */
   allowPrivateWebhookTargets?: boolean;
+  /**
+   * Gates the whole control API. Null or empty leaves it open, which is only safe for a
+   * private local instance — a shared one must set it.
+   */
+  adminToken?: string | null;
   /** Directory holding the prebuilt dashboard. Omitted means the dashboard is not served. */
   dashboardRoot?: string;
   /** Creates a ready-to-use sandbox on start. Pass false for a bare instance. */
@@ -40,6 +46,7 @@ export interface AppOptions {
 
 export interface App {
   runtime: AppRuntime;
+  adminToken: string | null;
   routes: Record<string, unknown>;
   defaultSandbox: Sandbox | null;
   /** Delivers everything currently due. Exposed so tests never need to wait. */
@@ -83,6 +90,16 @@ export function createApp(options: AppOptions = {}): App {
   const send = (result: control.ControlResult) => Response.json(result.body, { status: result.status });
   const path = (request: Request, name: string): string => param(request, name);
 
+  const adminToken = options.adminToken === undefined ? null : options.adminToken;
+
+  /** Everything under /_payground except health and the dashboard shell needs the token. */
+  const admin =
+    (handler: (request: Request) => Response | Promise<Response>) =>
+    (request: Request): Response | Promise<Response> => {
+      const denial = requireAdmin(request, new URL(request.url), adminToken);
+      return denial === null ? handler(request) : Response.json(denial.body, { status: denial.status });
+    };
+
   const routes: Record<string, unknown> = {
     '/_payground/health': () => Response.json(health(clock, startedAt)),
     ...(options.dashboardRoot === undefined
@@ -93,42 +110,43 @@ export function createApp(options: AppOptions = {}): App {
         }),
 
     '/_payground/sandboxes': {
-      GET: () => send(control.listSandboxes(deps)),
-      POST: async (request: Request) => send(control.createSandbox(deps, await json(request))),
+      GET: admin(() => send(control.listSandboxes(deps))),
+      POST: admin(async (request) => send(control.createSandbox(deps, await json(request)))),
     },
     '/_payground/sandboxes/:id': {
-      DELETE: (request: Request) => send(control.deleteSandbox(deps, path(request, 'id'))),
+      GET: admin((request) => send(control.getSandbox(deps, path(request, 'id')))),
+      DELETE: admin((request) => send(control.deleteSandbox(deps, path(request, 'id')))),
     },
     '/_payground/sandboxes/:id/reset': {
-      POST: (request: Request) => send(control.resetSandbox(deps, path(request, 'id'))),
+      POST: admin((request) => send(control.resetSandbox(deps, path(request, 'id')))),
     },
     '/_payground/sandboxes/:id/payments': {
-      GET: (request: Request) =>
+      GET: admin((request) =>
         send(control.listPayments(deps, path(request, 'id'), new URL(request.url).searchParams)),
+      ),
     },
     '/_payground/sandboxes/:id/payments/:pid': {
-      GET: (request: Request) =>
-        send(control.getPaymentDetail(deps, path(request, 'id'), path(request, 'pid'))),
+      GET: admin((request) => send(control.getPaymentDetail(deps, path(request, 'id'), path(request, 'pid')))),
     },
     '/_payground/sandboxes/:id/payments/:pid/actions': {
-      POST: async (request: Request) =>
+      POST: admin(async (request) =>
         send(control.actOnPayment(deps, path(request, 'id'), path(request, 'pid'), await json(request))),
+      ),
     },
     '/_payground/sandboxes/:id/webhooks': {
-      GET: (request: Request) => send(control.listWebhooks(deps, path(request, 'id'))),
+      GET: admin((request) => send(control.listWebhooks(deps, path(request, 'id')))),
     },
     '/_payground/sandboxes/:id/webhooks/:wid/replay': {
-      POST: async (request: Request) => {
+      POST: admin(async (request) => {
         const result = control.replayWebhook(deps, path(request, 'id'), path(request, 'wid'));
         if (result.status === 200) await drainWebhooks();
         return send(result);
-      },
+      }),
     },
     '/_payground/sandboxes/:id/faults': {
-      GET: (request: Request) => send(control.getFaults(deps, path(request, 'id'))),
-      PUT: async (request: Request) => send(control.setFaults(deps, path(request, 'id'), await json(request))),
+      GET: admin((request) => send(control.getFaults(deps, path(request, 'id')))),
+      PUT: admin(async (request) => send(control.setFaults(deps, path(request, 'id'), await json(request)))),
     },
-
   };
 
   const moduleDeps: ModuleDeps = { runtime, storage, param, json };
@@ -145,6 +163,7 @@ export function createApp(options: AppOptions = {}): App {
 
   return {
     runtime,
+    adminToken,
     routes: withTrailingSlashAliases(routes),
     defaultSandbox,
     drainWebhooks,

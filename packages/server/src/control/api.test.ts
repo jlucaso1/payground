@@ -243,3 +243,90 @@ describe('fault injection reaches the emulated API', () => {
     expect((await app.call('GET', '/_payground/sandboxes')).status).toBe(200);
   });
 });
+
+describe('admin token gating', () => {
+  const guarded = () => {
+    const clock = new ManualClock(1_700_000_000_000);
+    const server = createServer({
+      port: 0,
+      clock,
+      storage: Storage.open(),
+      ids: new SeededIdGenerator(),
+      deliveryIntervalMs: 0,
+      adminToken: 'admin-secret',
+      bootstrap: { accessToken: 'TEST-a', publicKey: 'TEST-p', webhookSecret: 's' },
+    });
+    stop = async () => {
+      await server.stop(true);
+    };
+    return server;
+  };
+
+  const call = (origin: string, path: string, token?: string) =>
+    fetch(`${origin}${path}`, token === undefined ? {} : { headers: { authorization: `Bearer ${token}` } });
+
+  test('every control route refuses an unauthenticated caller', async () => {
+    const server = guarded();
+    const sandbox = server.app.defaultSandbox as NonNullable<typeof server.app.defaultSandbox>;
+    const paths = [
+      '/_payground/sandboxes',
+      `/_payground/sandboxes/${sandbox.id}`,
+      `/_payground/sandboxes/${sandbox.id}/payments`,
+      `/_payground/sandboxes/${sandbox.id}/webhooks`,
+      `/_payground/sandboxes/${sandbox.id}/faults`,
+    ];
+    for (const path of paths) {
+      const response = await call(server.url.origin, path);
+      expect([path, response.status]).toEqual([path, 401]);
+      expect(((await response.json()) as { error: string }).error).toBe('unauthorized');
+    }
+  });
+
+  test('credentials are never readable without the token', async () => {
+    const server = guarded();
+    const body = await (await call(server.url.origin, '/_payground/sandboxes')).text();
+    expect(body).not.toContain('TEST-a');
+    expect(body).not.toContain('TEST-p');
+  });
+
+  test('the right token unlocks the control API', async () => {
+    const server = guarded();
+    const response = await call(server.url.origin, '/_payground/sandboxes', 'admin-secret');
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown[]).toHaveLength(1);
+  });
+
+  test('a wrong token is refused on writes too', async () => {
+    const server = guarded();
+    const response = await fetch(`${server.url.origin}/_payground/sandboxes`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer wrong', 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'intruder' }),
+    });
+    expect(response.status).toBe(401);
+    await response.json();
+
+    const listed = await call(server.url.origin, '/_payground/sandboxes', 'admin-secret');
+    expect((await listed.json()) as unknown[]).toHaveLength(1);
+  });
+
+  test('health stays public so probes keep working', async () => {
+    const server = guarded();
+    expect((await call(server.url.origin, '/_payground/health')).status).toBe(200);
+  });
+
+  test('the emulated API is unaffected by the admin token', async () => {
+    const server = guarded();
+    const response = await fetch(`${server.url.origin}/v1/payments`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer TEST-a',
+        'content-type': 'application/json',
+        'x-idempotency-key': crypto.randomUUID(),
+      },
+      body: JSON.stringify(pix),
+    });
+    expect(response.status).toBe(201);
+    await response.json();
+  });
+});

@@ -12,6 +12,9 @@ export const START_USAGE = `Usage: payground start [options]
   --db <path>      SQLite file, or :memory: (default ${DEFAULT_DB}, env PAYGROUND_DB)
   --base-url <url> Public origin used in tickets and QR codes (env PAYGROUND_BASE_URL)
   --dashboard <dir> Prebuilt dashboard assets (env PAYGROUND_DASHBOARD)
+  --admin-token <t> Token required by the control API (env PAYGROUND_ADMIN_TOKEN).
+                   Generated and printed when omitted; --no-admin-token disables it
+  --no-admin-token Leave the control API open (only safe on a private instance)
   --no-bootstrap   Start without creating a default sandbox
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
@@ -42,6 +45,8 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     db: { type: 'string' },
     'base-url': { type: 'string' },
     dashboard: { type: 'string' },
+    'admin-token': { type: 'string' },
+    'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
     'block-private-webhooks': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
@@ -79,6 +84,11 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     return FAILURE;
   }
 
+  // A shared instance must not expose sandbox credentials, so the token is on by default.
+  const adminToken = flag(parsed.values, 'no-admin-token')
+    ? null
+    : (text(parsed.values, 'admin-token') ?? env.variables['PAYGROUND_ADMIN_TOKEN'] ?? crypto.randomUUID());
+
   let storage;
   try {
     storage = env.openStorage(db);
@@ -93,6 +103,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     storage,
     ...(baseUrl === undefined ? {} : { baseUrl }),
     ...(dashboardRoot === null ? {} : { dashboardRoot }),
+    adminToken,
     ...(flag(parsed.values, 'block-private-webhooks') ? { allowPrivateWebhookTargets: false } : {}),
     ...(flag(parsed.values, 'no-bootstrap') ? { bootstrap: false as const } : {}),
   };
@@ -123,6 +134,11 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     dashboardRoot === null
       ? label('dashboard', 'not served — run `payground build-dashboard`')
       : label('dashboard', `${origin}${DASHBOARD_PATH}`),
+  );
+  env.io.out(
+    adminToken === null
+      ? label('admin token', 'disabled — the control API is open')
+      : label('admin token', adminToken),
   );
   env.io.out(label('health', `${origin}/_payground/health`));
 

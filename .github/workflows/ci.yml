@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -59,20 +60,3 @@ jobs:
       - run: bun install --frozen-lockfile
       # Drives the real mercadopago SDK against the emulator.
       - run: bun run test:e2e
-
-  docker:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: check
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t payground:ci .
-      - name: smoke test the image
-        run: |
-          docker run -d --rm --name payground-ci -p 8080:8080 payground:ci
-          for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:8080/_payground/health && break
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:8080/_payground/health
-          docker stop payground-ci

@@ -1,8 +1,9 @@
 name: payground
 
 # An alert in machine-written or vendored code cannot be fixed in place, so
-# reviewing one is wasted time. This also drops spec/overlay.ts, which is
-# hand-written but is a table of schema patches with no runtime behaviour.
+# reviewing one is wasted time. spec/overlay.ts stays in scope: it is hand-written.
 paths-ignore:
   - packages/mercadopago/src/generated/**
-  - spec/**
+  - spec/*.json
+  - spec/overlays/**
+  - spec/tables/**

@@ -18,6 +18,14 @@ Added: `live_mode`, `collector_id`, `sponsor_id`, `authorization_code`, `call_fo
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 
+### `Address`
+
+The spec models Address as the street fields only, so a customer address has no identity: the create response, the list entries and the update target all need an id, and the API also returns the neighborhood, the free-form comments and the audit timestamps. Address is shared with Payer, Customer and PreferenceShipments.receiver_address, so payground also tolerates these fields wherever an address is accepted, which the real API models only on a customer address.
+
+Added: `id`, `neighborhood`, `comments`, `date_created`, `date_last_updated`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/customer_addresses/_customers_customer_id_addresses/post
+
 ### `Refund`
 
 The spec enumerates only approved, in_process and rejected. The API also reports cancelled refunds, and returns nullable reason and unique_sequence_number.

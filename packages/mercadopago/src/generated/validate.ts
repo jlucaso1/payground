@@ -876,6 +876,34 @@ export function checkAddress(value: unknown, path: string, out: Issue[]): void {
     if (v6 !== undefined) {
       if (typeof v6 !== 'string') out.push({ path: path + ".country", message: 'expected string' });
     }
+    const v7: unknown = value["id"];
+    if (v7 !== undefined) {
+      if (typeof v7 !== 'string') out.push({ path: path + ".id", message: 'expected string' });
+    }
+    const v8: unknown = value["neighborhood"];
+    if (v8 !== undefined) {
+      if (v8 !== null) {
+        if (typeof v8 !== 'string') out.push({ path: path + ".neighborhood", message: 'expected string' });
+      }
+    }
+    const v9: unknown = value["comments"];
+    if (v9 !== undefined) {
+      if (v9 !== null) {
+        if (typeof v9 !== 'string') out.push({ path: path + ".comments", message: 'expected string' });
+      }
+    }
+    const v10: unknown = value["date_created"];
+    if (v10 !== undefined) {
+      if (v10 !== null) {
+        if (typeof v10 !== 'string') out.push({ path: path + ".date_created", message: 'expected string' });
+      }
+    }
+    const v11: unknown = value["date_last_updated"];
+    if (v11 !== undefined) {
+      if (v11 !== null) {
+        if (typeof v11 !== 'string') out.push({ path: path + ".date_last_updated", message: 'expected string' });
+      }
+    }
   }
 }
 

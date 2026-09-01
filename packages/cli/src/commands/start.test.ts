@@ -134,3 +134,33 @@ describe('start', () => {
     }
   });
 });
+
+describe('admin token resolution', () => {
+  test('an empty variable never disables the control API', async () => {
+    const { env, out } = testEnv({ variables: { PAYGROUND_ADMIN_TOKEN: '' } });
+    await main(['start', '--port', '0', '--db', ':memory:'], env);
+    const banner = out.join('\n');
+    expect(banner).toContain('admin token');
+    expect(banner).not.toContain('admin token     disabled');
+    expect(/admin token\s+\S+/.test(banner)).toBe(true);
+  });
+
+  test('a whitespace-only flag is treated as unset', async () => {
+    const { env, out } = testEnv();
+    await main(['start', '--port', '0', '--db', ':memory:', '--admin-token', '   '], env);
+    expect(/admin token\s+\S+/.test(out.join('\n'))).toBe(true);
+    expect(out.join('\n')).not.toContain('admin token        ');
+  });
+
+  test('an explicit token is used verbatim', async () => {
+    const { env, out } = testEnv({ variables: { PAYGROUND_ADMIN_TOKEN: 'from-env' } });
+    await main(['start', '--port', '0', '--db', ':memory:'], env);
+    expect(out.join('\n')).toContain('from-env');
+  });
+
+  test('only --no-admin-token disables it', async () => {
+    const { env, out } = testEnv();
+    await main(['start', '--port', '0', '--db', ':memory:', '--no-admin-token'], env);
+    expect(out.join('\n')).toContain('disabled');
+  });
+});

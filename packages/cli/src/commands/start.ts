@@ -187,9 +187,12 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
   }
 
   // A shared instance must not expose sandbox credentials, so the token is on by default.
-  const adminToken = flag(parsed.values, 'no-admin-token')
-    ? null
-    : (text(parsed.values, 'admin-token') ?? env.variables['PAYGROUND_ADMIN_TOKEN'] ?? crypto.randomUUID());
+  // An empty flag or variable is treated as unset rather than as "no token": an unexpanded
+  // ${PAYGROUND_ADMIN_TOKEN} in a compose file would otherwise open the control API.
+  const configuredToken = [text(parsed.values, 'admin-token'), env.variables['PAYGROUND_ADMIN_TOKEN']]
+    .map((value) => value?.trim())
+    .find((value) => value !== undefined && value !== '');
+  const adminToken = flag(parsed.values, 'no-admin-token') ? null : (configuredToken ?? crypto.randomUUID());
 
   let storage;
   try {

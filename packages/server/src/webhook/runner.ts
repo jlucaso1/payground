@@ -113,7 +113,12 @@ export interface RunnerOptions extends AttemptOptions {
  * is ended only by the holder of its exact expiry stamp — so a process id, which needs
  * neither the clock nor randomness, is enough to tell instances apart while reading rows.
  */
-const INSTANCE = `pid-${process.pid}`;
+/**
+ * Identifies this process in the lease columns. A pid is not unique across machines or
+ * containers, and renew and release match on the owner, so a collision would let one
+ * instance end another's lease.
+ */
+const INSTANCE = `pg-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
 
 /**
  * Delivers everything that is due right now. Returns how many deliveries were attempted.

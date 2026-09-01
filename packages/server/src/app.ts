@@ -43,6 +43,8 @@ export interface AppOptions {
    * user-supplied URLs cannot reach internal services.
    */
   allowPrivateWebhookTargets?: boolean;
+  /** Hostnames always allowed as webhook targets, even when private addresses are blocked. */
+  webhookAllowlist?: readonly string[];
   metrics?: MetricsSink;
   rateLimiter?: RateLimiter;
   /** Response bodies longer than this are not kept in the request history. 0 disables it. */
@@ -95,7 +97,10 @@ export function createApp(options: AppOptions = {}): App {
       clock,
       random,
       metrics,
-      net: { allowPrivateAddresses: options.allowPrivateWebhookTargets ?? true },
+      net: {
+        allowPrivateAddresses: options.allowPrivateWebhookTargets ?? true,
+        ...(options.webhookAllowlist === undefined ? {} : { allowlist: options.webhookAllowlist }),
+      },
     });
 
   const defaultSandbox = options.bootstrap === false ? null : bootstrap(runtime, options.bootstrap ?? {});
@@ -115,7 +120,7 @@ export function createApp(options: AppOptions = {}): App {
 
   const adminToken = options.adminToken === undefined ? null : options.adminToken;
 
-  /** Everything under /_payground except health and the dashboard shell needs the token. */
+  /** /_payground needs the token, except health, ready and the dashboard shell. */
   const admin =
     (handler: (request: Request) => Response | Promise<Response>) =>
     (request: Request): Response | Promise<Response> => {

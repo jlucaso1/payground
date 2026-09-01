@@ -1,0 +1,67 @@
+name: Feature request
+description: Ask for an operation, a behaviour or a tool payground does not have yet.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        payground emulates the 142 operations of the vendored OpenAPI specification.
+        Say which one you need, or describe the tooling gap if your request is not an endpoint.
+  - type: textarea
+    id: request
+    attributes:
+      label: What you want
+      description: Describe the behaviour you need and the integration it unblocks.
+    validations:
+      required: true
+  - type: input
+    id: operation
+    attributes:
+      label: Operation ID or endpoint
+      description: The operationId from the spec, or the method and path. Write "none" if this is not an endpoint.
+      placeholder: createPayment, or POST /v1/payments
+    validations:
+      required: true
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      options:
+        - payments
+        - checkout (preferences)
+        - orders
+        - customers and cards
+        - refunds, chargebacks and disputes
+        - claims
+        - subscriptions (preapproval)
+        - payouts and money transfers
+        - point (terminals)
+        - qr (in-store orders)
+        - stores and POS
+        - identity and users
+        - reports (release and settlement)
+        - wallet connect
+        - webhooks and notifications
+        - CLI, dashboard or tooling
+        - other or not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: real-api
+    attributes:
+      label: Does the real API already behave this way?
+      description: payground follows the real API, so a request it does not support needs a strong reason.
+      options:
+        - "Yes, and I can link the reference"
+        - "No, this is a sandbox-only convenience"
+        - "I do not know"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reference
+      description: Link to the Mercado Pago documentation or the official SDK source for the behaviour, if there is one.
+    validations:
+      required: false

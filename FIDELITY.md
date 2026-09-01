@@ -168,9 +168,9 @@ In the Pix guide sample, tag 26 declares length 60 for 64 characters of content 
 
 Source: https://www.mercadopago.com.br/developers/en/docs/checkout-api-payments/integration-configuration/integrate-pix
 
-### Merchant orders — Merchant orders are read-only and derived from preferences
+### Merchant orders — order_status and paid_amount stay derived, even on a directly created order
 
-The real API exposes POST /merchant_orders and PUT /merchant_orders/{id}. payground creates a merchant order when a Checkout Pro preference first receives a payment and keeps its totals and order_status in step, but does not accept direct creation or update.
+payground accepts POST /merchant_orders and PUT /merchant_orders/{id}, but never stores order_status, paid_amount or refunded_amount: they are recomputed from the attached payment snapshots on every write and every read. total_amount is the sum of the items and shipping_cost the sum of the shipments, so, as for a preference, items must be non-empty and priced above zero. An order created with a preference_id keeps mirroring that preference — its items and shipments are refused on create and update, and its amount due and expiry window keep coming from the preference; a preference owns at most one merchant order, so a second POST for the same preference_id is a 409. PUT is a partial update: only the keys present in the body change and preference_id cannot be reassigned. payments carries references (`[{ "id": 123 }]`) that are merged by id and never removed; each reference re-reads the status, the captured amount and the refunded amount from the payment resource, which is also the only moment an already attached payment is refreshed.
 
 Source: https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post
 

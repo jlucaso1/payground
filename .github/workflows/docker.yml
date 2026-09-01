@@ -1,0 +1,117 @@
+name: docker
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+# Never let two publishes for the same ref race for a tag. Superseded pull request
+# builds are safe to cancel; a half-finished publish is not.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # No id-token: write. The provenance and SBOM below are buildkit attestations
+    # pushed inside the manifest list; they are not OIDC-signed, so nothing needs it.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Both oven/bun:1.4 and oven/bun:1.4-slim publish linux/arm64 manifests,
+      # so the arm64 leg is emulated here rather than skipped.
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # latest=auto keeps `latest` on semver tags only, never on main.
+          flavor: latest=auto
+          tags: |
+            type=edge,branch=main
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.description=Self-hosted sandbox that speaks the Mercado Pago API
+            org.opencontainers.image.licenses=MIT
+
+      # amd64 only and no attestations: the docker exporter that `load` uses cannot
+      # carry a manifest list or attestation manifests. This is the smoke test build;
+      # the push below rebuilds from the same cache for both platforms.
+      - name: build for smoke test
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: payground:smoke
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+
+      # An image that starts and crashes is worse than no image at all.
+      - name: smoke test
+        run: |
+          # No --rm: a container that crashes on startup must stick around long
+          # enough for docker logs to explain why.
+          docker run -d --name payground-smoke -p 8080:8080 payground:smoke
+          ok=""
+          deadline=$((SECONDS + 60))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if curl -fsS http://127.0.0.1:8080/_payground/health; then
+              ok=1
+              break
+            fi
+            if [ -z "$(docker ps -q -f name=payground-smoke)" ]; then
+              echo "container exited before answering"
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$ok" ]; then
+            docker logs payground-smoke || true
+            docker rm -f payground-smoke || true
+            exit 1
+          fi
+          docker rm -f payground-smoke
+
+      - name: login to ghcr
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Guarded on the event, not on permissions, so a fork pull request can never publish.
+      - name: build and push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: mode=max
+          sbom: true
+          cache-from: |
+            type=gha,scope=amd64
+            type=gha,scope=multi
+          cache-to: type=gha,mode=max,scope=multi

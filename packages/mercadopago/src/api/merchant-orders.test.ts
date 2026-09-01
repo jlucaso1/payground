@@ -1,14 +1,20 @@
 import { describe, expect, test } from 'bun:test';
-import { type JsonObject, isJsonObject } from '@payground/core';
+import { type JsonObject, type Result, isJsonObject, unwrap } from '@payground/core';
+import type { ErrorBody } from '../errors.ts';
 import { testContext } from '../testing.ts';
-import type { ServiceContext } from './context.ts';
+import { createCardToken } from './card-tokens.ts';
+import type { Rendered, ServiceContext } from './context.ts';
+import { cardPaymentBody, cardTokenBody } from './fixture.ts';
 import {
   attachPayment,
+  createMerchantOrder,
   getMerchantOrder,
   orderForPreference,
   orderStatusOf,
   searchMerchantOrders,
+  updateMerchantOrder,
 } from './merchant-orders.ts';
+import { createPayment, createRefund, updatePayment } from './payments.ts';
 import { createPreference } from './preferences.ts';
 
 function preference(context: ServiceContext, overrides: Record<string, unknown> = {}): string {
@@ -132,6 +138,17 @@ describe('attachPayment', () => {
     expect(order['refunded_amount']).toBe(20.5);
   });
 
+  test('treats a chargeback as a full reversal even without a refunded amount', () => {
+    const { context } = testContext();
+    const id = preference(context);
+    attachPayment(context, id, 1_000_000_001, 'approved', 20.5);
+    attachPayment(context, id, 1_000_000_001, 'charged_back', 20.5);
+
+    const order = doc(context, id);
+    expect(order['refunded_amount']).toBe(20.5);
+    expect(order['order_status']).toBe('refunded');
+  });
+
   test('does nothing when the preference does not exist', () => {
     const { context } = testContext();
     attachPayment(context, 'missing', 1, 'approved', 10);
@@ -196,5 +213,287 @@ describe('getMerchantOrder / searchMerchantOrders', () => {
   test('rejects a non-numeric offset', () => {
     const { context } = testContext();
     expect(searchMerchantOrders(context, new URLSearchParams('offset=abc')).ok).toBe(false);
+  });
+});
+
+const created = (result: Result<Rendered, ErrorBody>): JsonObject => {
+  if (!result.ok || !isJsonObject(result.value.body)) throw new Error('expected success');
+  return result.value.body;
+};
+
+const failure = (result: Result<Rendered, ErrorBody>): ErrorBody => {
+  if (result.ok) throw new Error('expected a failure');
+  return result.error;
+};
+
+/** An approved card payment, so an update can attach a real payment id. */
+function approvedPayment(context: ServiceContext, amount: number): number {
+  const token = unwrap(createCardToken(context, cardTokenBody({ cardholder: { name: 'APRO' } })))
+    .body as { id?: string };
+  const payment = unwrap(createPayment(context, cardPaymentBody(token.id ?? '', { transaction_amount: amount })))
+    .body as { id: number };
+  return payment.id;
+}
+
+const ITEMS = [
+  { id: 'sku-1', title: 'Coffee', quantity: 2, unit_price: 10.25 },
+  { id: 'sku-2', title: 'Mug', quantity: 1, unit_price: 9.5 },
+];
+
+describe('createMerchantOrder', () => {
+  test('sums the items and the shipments into the totals', () => {
+    const { context } = testContext();
+    const order = created(
+      createMerchantOrder(context, {
+        items: ITEMS,
+        shipments: [{ id: 'ship-1', cost: 4.5 }],
+        external_reference: 'ORDER-1',
+        additional_info: 'note',
+        payer: { email: 'buyer@example.com' },
+      }),
+    );
+
+    expect(order['id']).toBe(2_000_000_001);
+    expect(order['total_amount']).toBe(30);
+    expect(order['shipping_cost']).toBe(4.5);
+    expect(order['order_status']).toBe('payment_required');
+    expect(order['status']).toBe('opened');
+    expect(order['paid_amount']).toBe(0);
+    expect(order['preference_id']).toBeNull();
+    expect(order['site_id']).toBe('MLB');
+    expect(order['external_reference']).toBe('ORDER-1');
+    expect(order['additional_info']).toBe('note');
+    expect(order['payer']).toEqual({ email: 'buyer@example.com' });
+  });
+
+  test('is readable back by id and searchable by external reference', () => {
+    const { context } = testContext();
+    createMerchantOrder(context, { items: ITEMS, external_reference: 'ORDER-2' });
+
+    expect(created(getMerchantOrder(context, '2000000001'))['total_amount']).toBe(30);
+    const found = created(searchMerchantOrders(context, new URLSearchParams('external_reference=ORDER-2')));
+    expect(found['total']).toBe(1);
+  });
+
+  test('mirrors the preference when one is given and refuses a rival cart', () => {
+    const { context } = testContext();
+    const id = preference(context, { external_reference: 'cart-1' });
+
+    const order = created(createMerchantOrder(context, { preference_id: id }));
+    expect(order['preference_id']).toBe(id);
+    expect(order['total_amount']).toBe(20.5);
+    expect(order['external_reference']).toBe('cart-1');
+    expect(orderForPreference(context, id)?.sequence).toBe(2_000_000_001);
+
+    expect(failure(createMerchantOrder(context, { preference_id: id })).status).toBe(409);
+
+    const other = preference(context);
+    expect(failure(createMerchantOrder(context, { preference_id: other, items: ITEMS })).status).toBe(400);
+  });
+
+  test('a payment on the preference lands on the order created up front', () => {
+    const { context } = testContext();
+    const id = preference(context);
+    const order = created(createMerchantOrder(context, { preference_id: id }));
+
+    attachPayment(context, id, 1_000_000_001, 'approved', 20.5);
+    const read = created(getMerchantOrder(context, String(order['id'])));
+    expect(read['order_status']).toBe('paid');
+    expect(read['paid_amount']).toBe(20.5);
+  });
+
+  test('rejects an unknown preference and a malformed body', () => {
+    const { context } = testContext();
+    expect(failure(createMerchantOrder(context, { preference_id: 'nope' })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, 'not an object')).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { site_id: 'MLZ' })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { notification_url: 'ftp://x' })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { sponsor_id: 1.5 })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, {})).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: [] })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: [{ unit_price: 0 }] })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: [{ unit_price: -1 }] })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: [{ unit_price: 1, quantity: 0 }] })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: [{ unit_price: 0.001 }] })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: {} })).status).toBe(400);
+    expect(failure(createMerchantOrder(context, { items: ITEMS, shipments: [{ cost: 'free' }] })).status).toBe(400);
+  });
+
+  test('attaches the payments given on creation and derives the status from them', () => {
+    const { context } = testContext();
+    const paymentId = approvedPayment(context, 30);
+    const order = created(createMerchantOrder(context, { items: ITEMS, payments: [{ id: paymentId }] }));
+
+    expect(order['payments']).toHaveLength(1);
+    expect(order['paid_amount']).toBe(30);
+    expect(order['order_status']).toBe('paid');
+    expect(order['status']).toBe('closed');
+    expect(failure(createMerchantOrder(context, { items: ITEMS, payments: [{ id: 7 }] })).status).toBe(400);
+  });
+
+  test('merges repeated references to the same payment instead of double counting', () => {
+    const { context } = testContext();
+    const paymentId = approvedPayment(context, 30);
+    const order = created(
+      createMerchantOrder(context, { items: ITEMS, payments: [{ id: paymentId }, paymentId] }),
+    );
+
+    expect(order['payments']).toHaveLength(1);
+    expect(order['paid_amount']).toBe(30);
+  });
+
+  test('counts what the payment captured, not what it authorized', () => {
+    const { context } = testContext();
+    const token = unwrap(createCardToken(context, cardTokenBody({ cardholder: { name: 'APRO' } })))
+      .body as { id?: string };
+    const authorized = unwrap(
+      createPayment(context, cardPaymentBody(token.id ?? '', { transaction_amount: 30, capture: false })),
+    ).body as { id: number };
+    unwrap(updatePayment(context, String(authorized.id), { capture: true, transaction_amount: 10 }));
+
+    const order = created(
+      createMerchantOrder(context, { items: ITEMS, payments: [{ id: authorized.id }] }),
+    );
+    expect(order['paid_amount']).toBe(10);
+    expect(order['order_status']).toBe('partially_paid');
+  });
+
+  test('an order on an already expired preference is born expired', () => {
+    const { context, clock } = testContext();
+    const id = preference(context, {
+      expires: true,
+      expiration_date_to: new Date(clock.now() + 1_000).toISOString(),
+    });
+    clock.advance(2_000);
+
+    const order = created(createMerchantOrder(context, { preference_id: id }));
+    expect(order['order_status']).toBe('expired');
+    expect(order['status']).toBe('expired');
+    expect(created(searchMerchantOrders(context, new URLSearchParams('status=expired')))['total']).toBe(1);
+  });
+
+  test('resets marketplace and additional_info when they are sent as null', () => {
+    const { context } = testContext();
+    const order = created(
+      createMerchantOrder(context, {
+        items: ITEMS,
+        marketplace: null,
+        additional_info: null,
+        application_id: 12345,
+      }),
+    );
+    expect(order['marketplace']).toBe('NONE');
+    expect(order['additional_info']).toBe('');
+    expect(order['application_id']).toBe(12345);
+  });
+});
+
+describe('updateMerchantOrder', () => {
+  test('replaces the items and recomputes the total', () => {
+    const { context } = testContext();
+    const order = created(createMerchantOrder(context, { items: ITEMS }));
+
+    const updated = created(
+      updateMerchantOrder(context, String(order['id']), {
+        items: [{ title: 'Tea', quantity: 3, unit_price: 5 }],
+        shipments: [{ cost: 2 }],
+        additional_info: 'changed',
+        external_reference: 'ORDER-9',
+      }),
+    );
+
+    expect(updated['total_amount']).toBe(15);
+    expect(updated['shipping_cost']).toBe(2);
+    expect(updated['additional_info']).toBe('changed');
+    expect(updated['order_status']).toBe('payment_required');
+    expect(created(searchMerchantOrders(context, new URLSearchParams('external_reference=ORDER-9')))['total']).toBe(1);
+  });
+
+  test('leaves untouched fields alone', () => {
+    const { context } = testContext();
+    const order = created(createMerchantOrder(context, { items: ITEMS, marketplace: 'NONE' }));
+    const updated = created(updateMerchantOrder(context, String(order['id']), { marketplace: 'MP-MKT' }));
+
+    expect(updated['marketplace']).toBe('MP-MKT');
+    expect(updated['total_amount']).toBe(30);
+    expect(updated['items']).toHaveLength(2);
+  });
+
+  test('attaches a payment and derives paid_amount and order_status from it', () => {
+    const { context } = testContext();
+    const order = created(createMerchantOrder(context, { items: ITEMS }));
+    const paymentId = approvedPayment(context, 10);
+
+    let updated = created(updateMerchantOrder(context, String(order['id']), { payments: [{ id: paymentId }] }));
+    expect(updated['paid_amount']).toBe(10);
+    expect(updated['order_status']).toBe('partially_paid');
+    expect(updated['payments']).toHaveLength(1);
+
+    // Re-attaching the same payment refreshes it in place instead of double counting.
+    updated = created(updateMerchantOrder(context, String(order['id']), { payments: [{ id: paymentId }] }));
+    expect(updated['payments']).toHaveLength(1);
+    expect(updated['paid_amount']).toBe(10);
+
+    const second = approvedPayment(context, 20);
+    updated = created(updateMerchantOrder(context, String(order['id']), { payments: [second] }));
+    expect(updated['paid_amount']).toBe(30);
+    expect(updated['order_status']).toBe('paid');
+    expect(updated['status']).toBe('closed');
+  });
+
+  test('a shrinking cart turns an outstanding order into a paid one', () => {
+    const { context } = testContext();
+    const order = created(createMerchantOrder(context, { items: ITEMS }));
+    const paymentId = approvedPayment(context, 10);
+    updateMerchantOrder(context, String(order['id']), { payments: [{ id: paymentId }] });
+
+    const updated = created(
+      updateMerchantOrder(context, String(order['id']), { items: [{ title: 'Tea', unit_price: 10 }] }),
+    );
+    expect(updated['total_amount']).toBe(10);
+    expect(updated['order_status']).toBe('paid');
+  });
+
+  test('keeps a preference-owned order consistent with its preference', () => {
+    const { context } = testContext();
+    const id = preference(context);
+    const order = created(createMerchantOrder(context, { preference_id: id }));
+
+    expect(failure(updateMerchantOrder(context, String(order['id']), { items: ITEMS })).status).toBe(400);
+    expect(failure(updateMerchantOrder(context, String(order['id']), { shipments: [] })).status).toBe(400);
+    expect(failure(updateMerchantOrder(context, String(order['id']), { preference_id: 'other' })).status).toBe(400);
+
+    const updated = created(updateMerchantOrder(context, String(order['id']), { additional_info: 'ok' }));
+    expect(updated['additional_info']).toBe('ok');
+    expect(updated['total_amount']).toBe(20.5);
+  });
+
+  test('reflects a refund taken on the payment itself when it is re-attached', () => {
+    const { context } = testContext();
+    const order = created(createMerchantOrder(context, { items: ITEMS }));
+    const paymentId = approvedPayment(context, 30);
+    const reference = { payments: [{ id: paymentId }] };
+    expect(created(updateMerchantOrder(context, String(order['id']), reference))['order_status']).toBe('paid');
+
+    unwrap(createRefund(context, String(paymentId), { amount: 10 }));
+    let updated = created(updateMerchantOrder(context, String(order['id']), reference));
+    expect(updated['refunded_amount']).toBe(10);
+    expect(updated['order_status']).toBe('partially_refunded');
+
+    unwrap(createRefund(context, String(paymentId), {}));
+    updated = created(updateMerchantOrder(context, String(order['id']), reference));
+    expect(updated['refunded_amount']).toBe(30);
+    expect(updated['order_status']).toBe('refunded');
+  });
+
+  test('reports 404 for an unknown order and 400 for an unknown payment', () => {
+    const { context } = testContext();
+    expect(failure(updateMerchantOrder(context, '2000000009', {})).status).toBe(404);
+    expect(failure(updateMerchantOrder(context, 'abc', {})).status).toBe(404);
+
+    const order = created(createMerchantOrder(context, { items: ITEMS }));
+    expect(failure(updateMerchantOrder(context, String(order['id']), { payments: [{ id: 7 }] })).status).toBe(400);
+    expect(failure(updateMerchantOrder(context, String(order['id']), { payments: 'x' })).status).toBe(400);
+    expect(failure(updateMerchantOrder(context, String(order['id']), 'x')).status).toBe(400);
   });
 });

@@ -1,4 +1,9 @@
-import { getMerchantOrder, searchMerchantOrders } from '@payground/mercadopago/api/merchant-orders.ts';
+import {
+  createMerchantOrder,
+  getMerchantOrder,
+  searchMerchantOrders,
+  updateMerchantOrder,
+} from '@payground/mercadopago/api/merchant-orders.ts';
 import {
   createPreference,
   getPreference,
@@ -16,13 +21,12 @@ export const checkout: RouteModule = {
     'getPreference',
     'updatePreference',
     'searchPreferences',
+    'createMerchantOrder',
     'getMerchantOrder',
+    'updateMerchantOrder',
     'searchMerchantOrders',
   ],
-  pending: [
-    { operationId: 'createMerchantOrder', reason: 'merchant orders are derived from preferences' },
-    { operationId: 'updateMerchantOrder', reason: 'merchant orders are derived from preferences' },
-  ],
+  pending: [],
   routes: ({ runtime, storage, param }) => {
     /** The hosted checkout page stands in for the Mercado Pago redirect flow. */
     const hosted = async (request: Request, preferenceId: string): Promise<Response> => {
@@ -63,11 +67,17 @@ export const checkout: RouteModule = {
           fromResult(updatePreference(service, param(request, 'id'), body)),
         ),
       },
+      '/merchant_orders': {
+        POST: endpoint(runtime, ({ service, body }) => fromResult(createMerchantOrder(service, body))),
+      },
       '/merchant_orders/search': {
         GET: endpoint(runtime, ({ service, url }) => fromResult(searchMerchantOrders(service, url.searchParams))),
       },
       '/merchant_orders/:id': {
         GET: endpoint(runtime, ({ service, request }) => fromResult(getMerchantOrder(service, param(request, 'id')))),
+        PUT: endpoint(runtime, ({ service, request, body }) =>
+          fromResult(updateMerchantOrder(service, param(request, 'id'), body)),
+        ),
       },
       '/checkout/:id': {
         GET: (request: Request) => hosted(request, param(request, 'id')),

@@ -3159,6 +3159,10 @@ export function checkSubscriptionPlanRequest(value: unknown, path: string, out: 
     if (v12 !== undefined) {
       if (typeof v12 !== 'string') out.push({ path: path + ".back_url", message: 'expected string' });
     }
+    const v13: unknown = value["notification_url"];
+    if (v13 !== undefined) {
+      if (typeof v13 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
+    }
   }
 }
 
@@ -3258,6 +3262,12 @@ export function checkSubscriptionPlan(value: unknown, path: string, out: Issue[]
     if (v7 !== undefined) {
       if (typeof v7 !== 'string') out.push({ path: path + ".init_point", message: 'expected string' });
     }
+    const v8: unknown = value["notification_url"];
+    if (v8 !== undefined) {
+      if (v8 !== null) {
+        if (typeof v8 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
+      }
+    }
   }
 }
 
@@ -3308,6 +3318,10 @@ export function checkSubscriptionRequest(value: unknown, path: string, out: Issu
     const v8: unknown = value["status"];
     if (v8 !== undefined) {
       if (v8 !== "pending" && v8 !== "authorized" && v8 !== "paused" && v8 !== "cancelled") out.push({ path: path + ".status", message: 'not one of the allowed values' });
+    }
+    const v9: unknown = value["notification_url"];
+    if (v9 !== undefined) {
+      if (typeof v9 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
     }
   }
 }
@@ -3404,6 +3418,12 @@ export function checkSubscription(value: unknown, path: string, out: Issue[]): v
     const v20: unknown = value["init_point"];
     if (v20 !== undefined) {
       if (typeof v20 !== 'string') out.push({ path: path + ".init_point", message: 'expected string' });
+    }
+    const v21: unknown = value["notification_url"];
+    if (v21 !== undefined) {
+      if (v21 !== null) {
+        if (typeof v21 !== 'string') out.push({ path: path + ".notification_url", message: 'expected string' });
+      }
     }
   }
 }

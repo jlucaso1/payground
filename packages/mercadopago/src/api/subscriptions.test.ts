@@ -570,3 +570,62 @@ describe('billing fuzz', () => {
     }
   });
 });
+
+describe('notification_url', () => {
+  const urls = (events: readonly EventNotice[]): (string | null)[] =>
+    events.map((notice) => (notice as unknown as Loose)['notificationUrl'] as string | null);
+
+  test('a subscription carries its own url and every topic rides it', () => {
+    const { context, events, clock } = harness();
+    const hook = 'https://merchant.test/hook';
+    const subscription = subscribe(context, {}, { notification_url: hook });
+    expect(subscription['notification_url']).toBe(hook);
+
+    clock.advance(40 * DAY);
+    expect(runBilling(context, clock.now()).charged).toBe(2);
+    expect(new Set(urls(events))).toEqual(new Set([hook]));
+    expect(topics(events)).toContain('subscription_authorized_payment');
+  });
+
+  test('a subscription without one inherits the plan url', () => {
+    const { context, events } = harness();
+    const hook = 'https://merchant.test/plan-hook';
+    const plan = body(createPlan(context, { ...planRequest(), notification_url: hook }));
+    expect(plan['notification_url']).toBe(hook);
+
+    subscribe(context, {}, { preapproval_plan_id: plan['id'] });
+    expect(new Set(urls(events))).toEqual(new Set([hook]));
+  });
+
+  test('none anywhere emits the notice without a target', () => {
+    const { context, events } = harness();
+    subscribe(context);
+    expect(urls(events)).toEqual([null]);
+  });
+
+  test('a non-string is refused', () => {
+    const { context } = harness();
+    expect(
+      failure(
+        createSubscription(context, {
+          reason: 'M',
+          payer_email: 'a@b.c',
+          auto_recurring: recurring(),
+          notification_url: 42,
+        }),
+      ).status,
+    ).toBe(400);
+    expect(failure(createPlan(context, { ...planRequest(), notification_url: [] })).status).toBe(400);
+  });
+
+  test('updating a plan replaces its url', () => {
+    const { context } = harness();
+    const plan = body(createPlan(context, { ...planRequest(), notification_url: 'https://a.test/1' }));
+    const updated = body(updatePlan(context, plan['id'] as string, { notification_url: 'https://a.test/2' }));
+    expect(updated['notification_url']).toBe('https://a.test/2');
+    expect(body(updatePlan(context, plan['id'] as string, { reason: 'Renamed' }))['notification_url']).toBe(
+      'https://a.test/2',
+    );
+    expect(failure(updatePlan(context, plan['id'] as string, { notification_url: 7 })).status).toBe(400);
+  });
+});

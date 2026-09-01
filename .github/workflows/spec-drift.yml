@@ -1,0 +1,175 @@
+name: spec-drift
+
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    # Every action in this job sees a token that can push and open pull requests,
+    # so all of them are pinned by commit.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      - name: resolve upstream head
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo=$(jq -r .repo spec/spec.lock.json)
+          pinned=$(bun -e "import { PINS } from './tools/spec-sync/src/pin.ts'; console.log(PINS.openapi.commit)")
+          # A lock that disagrees with the pin means the tree was hand-edited and
+          # nothing below can be trusted.
+          test "$pinned" = "$(jq -r .commit spec/spec.lock.json)"
+          branch=$(gh api "repos/$repo" --jq .default_branch)
+          head=$(gh api "repos/$repo/commits/$branch" --jq .sha)
+          {
+            echo "repo=$repo"
+            echo "pinned=$pinned"
+            echo "head=$head"
+          } >> "$GITHUB_OUTPUT"
+
+      # `spec:sync` fetches at the pin, so leaving the pin alone can only ever
+      # reproduce the current tree. Moving it is what surfaces a new release.
+      - name: move pin to upstream head
+        if: steps.upstream.outputs.head != steps.upstream.outputs.pinned
+        env:
+          PINNED: ${{ steps.upstream.outputs.pinned }}
+          HEAD_SHA: ${{ steps.upstream.outputs.head }}
+        run: |
+          sed -i "s/$PINNED/$HEAD_SHA/g" tools/spec-sync/src/pin.ts
+          grep -q "$HEAD_SHA" tools/spec-sync/src/pin.ts
+
+      # sync rewrites spec.lock.json from the bytes it just downloaded, so a digest
+      # change under an unmoved pin shows up as a lock diff: that is a force-push or
+      # a tampered artifact, not a release.
+      #
+      # A regeneration that fails is exactly the drift worth reviewing, so every step
+      # below records its outcome instead of aborting the job with nothing to show.
+      - name: sync vendored spec
+        id: sync
+        continue-on-error: true
+        run: bun run spec:sync
+
+      - name: regenerate adapter
+        id: gen
+        continue-on-error: true
+        run: bun run spec:gen
+
+      - name: scrape documentation tables
+        id: tables
+        continue-on-error: true
+        run: bun run spec:tables
+
+      # tables-cli writes the JSON tables before the generated module, so a partial
+      # run would commit rows that generated/tables.ts does not have.
+      - name: discard partial table scrape
+        if: steps.tables.outcome != 'success'
+        run: git checkout -- spec/tables packages/mercadopago/src/generated/tables.ts
+
+      # The scraper stamps every table with the run date, which would open a PR
+      # every week on its own.
+      - name: discard timestamp-only table churn
+        if: steps.tables.outcome == 'success'
+        run: |
+          for f in spec/tables/*.json; do
+            if git diff --quiet -- "$f"; then
+              continue
+            fi
+            before=$(git show "HEAD:$f" | jq -S 'del(.fetchedAt)')
+            after=$(jq -S 'del(.fetchedAt)' "$f")
+            if [ "$before" = "$after" ]; then
+              git checkout -- "$f"
+            fi
+          done
+
+      - name: typecheck
+        id: typecheck
+        continue-on-error: true
+        run: bun run typecheck
+
+      - name: test
+        id: test
+        continue-on-error: true
+        run: bun test packages tools
+
+      - name: describe changes
+        id: changes
+        env:
+          REPO: ${{ steps.upstream.outputs.repo }}
+          PINNED: ${{ steps.upstream.outputs.pinned }}
+          HEAD_SHA: ${{ steps.upstream.outputs.head }}
+          SYNC: ${{ steps.sync.outcome }}
+          GEN: ${{ steps.gen.outcome }}
+          TABLES: ${{ steps.tables.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          TESTS: ${{ steps.test.outcome }}
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+          # Kept out of the workspace so the action does not commit it.
+          body="$RUNNER_TEMP/pr-body.md"
+          {
+            echo "Upstream: \`$REPO\`"
+            echo ""
+            echo "- pinned commit: \`$PINNED\`"
+            echo "- upstream head: \`$HEAD_SHA\`"
+            echo ""
+            echo "If those two are the same commit, the spec bytes changed under a pin that"
+            echo "did not move: treat that as a force-push or a tampered artifact."
+            echo ""
+            echo "## Steps"
+            echo ""
+            echo "- \`bun run spec:sync\`: $SYNC"
+            echo "- \`bun run spec:gen\`: $GEN"
+            echo "- \`bun run spec:tables\`: $TABLES (\`fetchedAt\`-only diffs are dropped; a"
+            echo "  scrape that failed is reverted in full)"
+            echo "- \`bun run typecheck\`: $TYPECHECK"
+            echo "- \`bun test packages tools\`: $TESTS"
+            echo ""
+            echo "## Changed files"
+            echo ""
+            echo '```'
+            git diff --cached --stat
+            echo '```'
+            echo ""
+            echo "## What a reviewer must check"
+            echo ""
+            echo "- Are the \`spec/overlay.ts\` entries still needed? Upstream may have added a"
+            echo "  field the overlay was compensating for, and \`spec:gen\` fails outright once"
+            echo "  an entry targets a schema that no longer exists."
+            echo "- Did an operation move? A changed path or method in"
+            echo "  \`packages/mercadopago/src/generated/routes.ts\` silently reroutes the emulator."
+            echo "- Any step above that is not \`success\` means the upstream change is breaking"
+            echo "  and needs a hand-written follow-up before this merges."
+            echo "- Pushes made with \`GITHUB_TOKEN\` do not start \`ci\`, so close and reopen this"
+            echo "  pull request to get the full suite, including the e2e and Docker jobs."
+          } > "$body"
+          echo "body_path=$body" >> "$GITHUB_OUTPUT"
+
+      - name: open pull request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: spec-drift/upstream
+          delete-branch: true
+          title: 'spec: sync vendored Mercado Pago OpenAPI'
+          body-path: ${{ steps.changes.outputs.body_path }}
+          commit-message: 'spec: sync vendored Mercado Pago OpenAPI'
+          labels: spec-drift

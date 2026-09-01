@@ -28,7 +28,8 @@ afterEach(async () => {
 
 /** Reads the banner the CLI prints, which is the only place the ephemeral port appears. */
 async function start(db: string): Promise<Instance> {
-  const child = Bun.spawn(['bun', CLI, 'start', '--db', db, '--port', '0', '--drain-timeout', '3000'], {
+  // process.execPath rather than 'bun': the test runner's PATH is not guaranteed.
+  const child = Bun.spawn([process.execPath, CLI, 'start', '--db', db, '--port', '0', '--drain-timeout', '3000'], {
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -43,7 +44,10 @@ async function start(db: string): Promise<Instance> {
   }
   const origin = /listening on (\S+)/.exec(banner)?.[1];
   const token = /access token\s+(\S+)/.exec(banner)?.[1];
-  if (origin === undefined || token === undefined) throw new Error(`no banner from the instance: ${banner}`);
+  if (origin === undefined || token === undefined) {
+    const failure = await new Response(child.stderr as ReadableStream<Uint8Array>).text();
+    throw new Error(`no banner from the instance: ${banner}${failure}`);
+  }
 
   const instance = { origin, token, process: child, exited };
   running[running.length - 1] = instance;

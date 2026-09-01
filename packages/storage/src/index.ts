@@ -32,12 +32,33 @@ export class Storage {
 
   static open(options: StorageOptions = {}): Storage {
     const path = options.path ?? ':memory:';
+    if (path === ':memory:') return Storage.connect(path, options);
+
+    // Switching a fresh file to WAL takes a brief exclusive lock that busy_timeout does not
+    // cover, so two processes starting at the same moment can collide. Retry the open.
+    const deadline = Math.max(options.busyTimeoutMs ?? 5_000, 0);
+    let waited = 0;
+    for (;;) {
+      try {
+        return Storage.connect(path, options);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/locked|busy/i.test(message) || waited >= deadline) throw error;
+        Bun.sleepSync(25);
+        waited += 25;
+      }
+    }
+  }
+
+  private static connect(path: string, options: StorageOptions): Storage {
     const db = new Database(path, { create: true, strict: false });
     db.exec('pragma foreign_keys = on');
     if (path !== ':memory:') {
-      db.exec('pragma journal_mode = wal');
-      // Several processes may share the file: a CLI command next to a running server.
+      // busy_timeout first: switching to WAL needs a brief exclusive lock, and two
+      // processes opening a fresh file at the same moment would otherwise race and one
+      // would fail outright with SQLITE_BUSY instead of waiting.
       db.exec(`pragma busy_timeout = ${Math.max(options.busyTimeoutMs ?? 5_000, 0)}`);
+      db.exec('pragma journal_mode = wal');
       db.exec('pragma synchronous = normal');
     }
     const storage = new Storage(db);

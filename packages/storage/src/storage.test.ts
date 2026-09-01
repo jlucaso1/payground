@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { paymentId, refundId, sandboxId, unwrap } from '@payground/core';
 import { CARD, amount, input, payment } from '@payground/core/payment/fixture.ts';
 import { apply, create } from '@payground/core';
@@ -280,5 +283,41 @@ describe('api request log', () => {
     expect(storage.requests.search({ method: 'GET' }).total).toBe(0);
     expect(storage.requests.purgeBefore(2_500)).toBe(2);
     expect(storage.requests.search({}).total).toBe(1);
+  });
+});
+
+describe('concurrent cold start', () => {
+  test('two connections opening the same fresh file both succeed', async () => {
+    const path = join(tmpdir(), `payground-open-${crypto.randomUUID()}.sqlite`);
+    try {
+      const opened = await Promise.all([
+        Promise.resolve().then(() => Storage.open({ path })),
+        Promise.resolve().then(() => Storage.open({ path })),
+      ]);
+
+      for (const storage of opened) {
+        expect(storage.sandboxes.list()).toEqual([]);
+        storage.close();
+      }
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(`${path}${suffix}`, { force: true });
+    }
+  });
+
+  test('the migration runs exactly once across connections', () => {
+    const path = join(tmpdir(), `payground-open-${crypto.randomUUID()}.sqlite`);
+    try {
+      const first = Storage.open({ path });
+      const second = Storage.open({ path });
+      second.migrate();
+
+      first.sandboxes.create(sandbox('shared'));
+      expect(second.sandboxes.list().map((s) => s.id)).toEqual([sandboxId('shared')]);
+
+      first.close();
+      second.close();
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(`${path}${suffix}`, { force: true });
+    }
   });
 });

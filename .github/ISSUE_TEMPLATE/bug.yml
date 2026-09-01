@@ -1,0 +1,79 @@
+name: Bug report
+description: payground crashes, hangs, or does something other than answer a request wrongly.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for defects in the server, the CLI, the storage layer or the dashboard.
+        If payground answers a request differently from the real Mercado Pago API, file a fidelity report instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the failure and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest reproduction
+      description: The commands and requests that trigger it, starting from a fresh sandbox.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Server log, stack trace or CLI output.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: payground version
+      description: Output of `payground --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: how-started
+    attributes:
+      label: How you started it
+      options:
+        - CLI (payground start)
+        - Docker
+        - From source (bun run start)
+        - Embedded as a library
+    validations:
+      required: true
+  - type: input
+    id: flags
+    attributes:
+      label: Flags and environment
+      description: The flags, compose settings or environment variables you passed.
+      placeholder: payground start --port 3000 --sandbox demo
+    validations:
+      required: false
+  - type: input
+    id: bun-version
+    attributes:
+      label: Bun version
+      description: Output of `bun --version`.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, macOS 15.3, Windows 11 with WSL2
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: This report contains no real card numbers, access tokens or personal data.
+          required: true

@@ -11,6 +11,16 @@ import type {
   WebhookDeliveryView,
 } from './types.ts';
 
+export interface SandboxCounts {
+  payments: number;
+  webhooks: number;
+}
+
+/** `counts` is null when the per-sandbox detail request failed. */
+export interface SandboxDetail extends Sandbox {
+  counts: SandboxCounts | null;
+}
+
 export interface ApiError {
   kind: 'http' | 'network' | 'parse' | 'unauthorized';
   message: string;
@@ -26,6 +36,8 @@ export interface ApiClientOptions {
   fetch?: FetchLike;
   /** Read on every call so a token entered after construction takes effect immediately. */
   token?: () => string | null;
+  /** Called with the token the rejected request carried, so stale 401s can be ignored. */
+  onUnauthorized?: (token: string | null) => void;
 }
 
 export const API_PREFIX = '/_payground';
@@ -51,6 +63,9 @@ function errorMessage(cause: unknown): string {
 export interface ApiClient {
   getHealth(): Promise<ApiResult<HealthView>>;
   listSandboxes(): Promise<ApiResult<Sandbox[]>>;
+  getSandbox(id: string): Promise<ApiResult<SandboxDetail>>;
+  /** One request per sandbox; a sandbox whose detail fails keeps null counts. */
+  listSandboxDetails(): Promise<ApiResult<SandboxDetail[]>>;
   createSandbox(name: string): Promise<ApiResult<Sandbox>>;
   resetSandbox(id: string): Promise<ApiResult<OkResponse>>;
   deleteSandbox(id: string): Promise<ApiResult<OkResponse>>;
@@ -71,6 +86,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const baseUrl = (options.baseUrl ?? '').replace(/\/$/, '');
   const doFetch: FetchLike = options.fetch ?? ((input, init) => fetch(input, init));
   const token = options.token ?? (() => null);
+  const onUnauthorized = options.onUnauthorized;
 
   async function request<T>(
     method: string,
@@ -79,11 +95,14 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   ): Promise<ApiResult<T>> {
     const url = `${baseUrl}${API_PREFIX}${path}`;
     let response: Response;
+    let sent: string | null = null;
     try {
-      const admin = token();
+      const raw = token();
+      const admin = raw === '' ? null : raw;
+      sent = admin;
       const headers: Record<string, string> = { accept: 'application/json' };
       if (body !== undefined) headers['content-type'] = 'application/json';
-      if (admin !== null && admin !== '') headers['authorization'] = `Bearer ${admin}`;
+      if (admin !== null) headers['authorization'] = `Bearer ${admin}`;
 
       response = await doFetch(url, {
         method,
@@ -97,6 +116,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     const text = await response.text().catch(() => '');
 
     if (!response.ok) {
+      if (response.status === 401) onUnauthorized?.(sent);
       return {
         ok: false,
         error: {
@@ -119,9 +139,30 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 
   const enc = encodeURIComponent;
 
+  const getSandbox = (id: string) => request<SandboxDetail>('GET', `/sandboxes/${enc(id)}`);
+
+  async function listSandboxDetails(): Promise<ApiResult<SandboxDetail[]>> {
+    const list = await request<Sandbox[]>('GET', '/sandboxes');
+    if (!list.ok) return list;
+    const details = await Promise.all(list.value.map((sandbox) => getSandbox(sandbox.id)));
+    const value: SandboxDetail[] = [];
+    for (const [index, detail] of details.entries()) {
+      if (detail.ok) {
+        value.push(detail.value);
+        continue;
+      }
+      if (detail.error.kind === 'unauthorized') return detail;
+      const fallback = list.value[index];
+      if (fallback !== undefined) value.push({ ...fallback, counts: null });
+    }
+    return { ok: true, value };
+  }
+
   return {
     getHealth: () => request<HealthView>('GET', '/health'),
     listSandboxes: () => request<Sandbox[]>('GET', '/sandboxes'),
+    getSandbox,
+    listSandboxDetails,
     createSandbox: (name) => request<Sandbox>('POST', '/sandboxes', { name }),
     resetSandbox: (id) => request<OkResponse>('POST', `/sandboxes/${enc(id)}/reset`),
     deleteSandbox: (id) => request<OkResponse>('DELETE', `/sandboxes/${enc(id)}`),

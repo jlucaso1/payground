@@ -146,6 +146,48 @@ an older file into a newer binary upgrades it in place. The reverse is not suppo
 Because the data is disposable by definition, "no backups at all, recreate the sandboxes"
 is a legitimate strategy for CI deployments.
 
+## Rate limiting
+
+Off by default. A self-hosted instance has one user, and a limiter that fires during a
+test run only makes the suite flaky, so throttling is opt-in:
+
+```sh
+payground start --rate-limit 50 --rate-burst 100
+```
+
+| Knob                          | Default        | Effect                                       |
+| ----------------------------- | -------------- | -------------------------------------------- |
+| `--rate-limit <n>` (`PAYGROUND_RATE_LIMIT`) | off | Sustained requests per second, per sandbox |
+| `--rate-burst <n>` (`PAYGROUND_RATE_BURST`) | one second of `--rate-limit` | How many requests a sandbox may spend at once |
+| `--no-rate-limit`             | —              | Turns it off again when the environment sets the variables |
+
+It is a token bucket keyed by sandbox id, so the budget is per tenant: a project looping
+over `/v1/payments/search` cannot starve the others. The whole emulated Mercado Pago
+surface counts against the budget — `/v1/`, `/checkout/preferences`, merchant orders,
+subscriptions — while the control API under `/_payground/` and the health endpoint do not,
+so an operator can still reach a throttled instance. Buckets left idle are dropped, so the
+memory the limiter uses tracks the number of *active* sandboxes, not the number that ever
+existed.
+
+A single sandbox can be given its own budget with `setLimit(sandboxId, { ratePerSecond,
+burst })` on the limiter returned by `createTokenBucketLimiter`, for the tenant that
+legitimately needs more (or less) than everyone else. That is a library knob — it is only
+reachable when you embed `createApp`/`createServer` yourself, there is no CLI flag and no
+control route for it — and the override lives in memory, so a restart returns the sandbox
+to the global setting.
+
+A refused request gets `429` with the provider's error envelope and a `Retry-After` in
+whole seconds, never zero. That matters for fidelity: the official Mercado Pago SDK lists
+`429` in `DEFAULT_RETRY_ON` and honours `Retry-After`, so a client that behaves well in
+production backs off here too, which is what keeps a shared staging box usable.
+
+The limiter runs after authentication, so it caps what a *tenant* can spend; it is not a
+defence against an unauthenticated flood. Connection limits belong in the reverse proxy.
+
+Pick the burst generously. A checkout flow is several calls back to back (create a
+preference, create the payment, poll it), and a burst smaller than that turns a normal
+flow into a `429` even though the sustained rate is fine.
+
 ## SSRF: webhook targets
 
 Webhook URLs are supplied by whoever creates a payment, and payground connects to them.

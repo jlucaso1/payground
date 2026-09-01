@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, createServer, type ServerOptions } from '@payground/server';
-import { FAILURE, OK, USAGE_ERROR, flag, integer, parseOptions, text } from '../args.ts';
+import { VERSION, createServer, createTokenBucketLimiter, type ServerOptions } from '@payground/server';
+import type { RateLimiter } from '@payground/core';
+import { FAILURE, OK, USAGE_ERROR, flag, integer, parseOptions, text, type Values } from '../args.ts';
 import { DEFAULT_DB, type Env } from '../env.ts';
 
 export const START_USAGE = `Usage: payground start [options]
@@ -16,6 +17,11 @@ export const START_USAGE = `Usage: payground start [options]
                    Generated and printed when omitted; --no-admin-token disables it
   --no-admin-token Leave the control API open (only safe on a private instance)
   --no-bootstrap   Start without creating a default sandbox
+  --rate-limit <n> Requests per second allowed per sandbox (env PAYGROUND_RATE_LIMIT).
+                   Off by default; enable it on a shared instance
+  --rate-burst <n> Requests a sandbox may spend at once (env PAYGROUND_RATE_BURST,
+                   default: one second of --rate-limit)
+  --no-rate-limit  Disable throttling even when the environment configures it
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -34,6 +40,44 @@ function findDashboard(explicit: string | undefined, variables: Record<string, s
   return null;
 }
 
+const MAX_RATE = 1_000_000;
+
+interface RateLimit {
+  limiter: RateLimiter;
+  ratePerSecond: number;
+  burst: number;
+}
+
+type Resolved = { ok: true; value: RateLimit | null } | { ok: false; message: string };
+
+const setting = (raw: string | undefined): string | undefined => (raw === undefined || raw.trim() === '' ? undefined : raw);
+
+/** Off unless asked for: a self-hosted instance has a single user and no reason to throttle. */
+function resolveRateLimit(
+  values: Values,
+  variables: Record<string, string | undefined>,
+): Resolved {
+  if (flag(values, 'no-rate-limit')) return { ok: true, value: null };
+  // An unexpanded `PAYGROUND_RATE_LIMIT: ${VAR}` in a compose file must leave it off,
+  // not refuse to start.
+  const rateRaw = setting(text(values, 'rate-limit') ?? variables['PAYGROUND_RATE_LIMIT']);
+  const burstRaw = setting(text(values, 'rate-burst') ?? variables['PAYGROUND_RATE_BURST']);
+  if (rateRaw === undefined) {
+    return burstRaw === undefined
+      ? { ok: true, value: null }
+      : { ok: false, message: '--rate-burst needs --rate-limit' };
+  }
+
+  const rate = integer(rateRaw, 'rate-limit', 1, MAX_RATE);
+  if (!rate.ok) return rate;
+  const burst = burstRaw === undefined ? rate : integer(burstRaw, 'rate-burst', 1, MAX_RATE);
+  if (!burst.ok) return burst;
+
+  const limiter = createTokenBucketLimiter({ ratePerSecond: rate.value, burst: burst.value });
+  if (!limiter.ok) return { ok: false, message: limiter.error };
+  return { ok: true, value: { limiter: limiter.value, ratePerSecond: rate.value, burst: burst.value } };
+}
+
 function label(name: string, value: string): string {
   return `  ${name.padEnd(15)} ${value}`;
 }
@@ -49,6 +93,9 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
     'block-private-webhooks': { type: 'boolean' },
+    'rate-limit': { type: 'string' },
+    'rate-burst': { type: 'string' },
+    'no-rate-limit': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   });
   if (!parsed.ok) {
@@ -84,6 +131,12 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     return FAILURE;
   }
 
+  const rateLimit = resolveRateLimit(parsed.values, env.variables);
+  if (!rateLimit.ok) {
+    env.io.err(rateLimit.message);
+    return USAGE_ERROR;
+  }
+
   // A shared instance must not expose sandbox credentials, so the token is on by default.
   const adminToken = flag(parsed.values, 'no-admin-token')
     ? null
@@ -106,6 +159,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     adminToken,
     ...(flag(parsed.values, 'block-private-webhooks') ? { allowPrivateWebhookTargets: false } : {}),
     ...(flag(parsed.values, 'no-bootstrap') ? { bootstrap: false as const } : {}),
+    ...(rateLimit.value === null ? {} : { rateLimiter: rateLimit.value.limiter }),
   };
 
   let server: ReturnType<typeof createServer>;
@@ -139,6 +193,11 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     adminToken === null
       ? label('admin token', 'disabled — the control API is open')
       : label('admin token', adminToken),
+  );
+  env.io.out(
+    rateLimit.value === null
+      ? label('rate limit', 'off')
+      : label('rate limit', `${rateLimit.value.ratePerSecond}/s per sandbox, burst ${rateLimit.value.burst}`),
   );
   env.io.out(label('health', `${origin}/_payground/health`));
 

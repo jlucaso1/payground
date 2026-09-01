@@ -285,6 +285,13 @@ export const DIVERGENCES: readonly Divergence[] = [
     source: 'https://github.com/mercadopago/openapi — paths./v2/wallet_connect/*',
   },
   {
+    area: 'Payouts',
+    summary: 'The outcome of a transfer is decided by the shape of its receiver',
+    detail:
+      'The spec describes neither the payout transaction statuses nor how a transfer settles. payground derives the batch status from its transactions (pending / processed / partially_processed / cancelled / failed) and never stores it, settles a valid Pix key instantly, settles a valid bank account one day later as a TED does, and fails a receiver no bank would accept with invalid_pix_key or invalid_bank_account instead of rejecting the request. Payout notices ride the payment topic, because the notification topics have no payout entry.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/payouts/_payouts/post',
+  },
+  {
     area: 'Node SDK',
     summary: 'Per-call requestOptions leak into the shared client configuration',
     detail:

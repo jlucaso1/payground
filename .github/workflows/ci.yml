@@ -17,7 +17,7 @@ concurrency:
 env:
   # Exact pin so a Bun release cannot break the build overnight. Must satisfy
   # `engines.bun` in packages/cli/package.json and stay on the Dockerfile's 1.4 line.
-  BUN_VERSION: 1.4.1
+  BUN_VERSION: 1.4.0
 
 jobs:
   check:

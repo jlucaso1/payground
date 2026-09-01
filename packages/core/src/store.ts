@@ -184,6 +184,8 @@ export interface WebhookDelivery {
 
 export interface WebhookRepository {
   insert(delivery: WebhookDelivery): void;
+  /** Delivery counts per status, without loading the deliveries themselves. */
+  countByStatus(): Readonly<Record<string, number>>;
   update(delivery: WebhookDelivery): void;
   get(id: WebhookDeliveryId): WebhookDelivery | null;
   list(limit?: number): readonly WebhookDelivery[];

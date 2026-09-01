@@ -94,6 +94,7 @@ export function createApp(options: AppOptions = {}): App {
       store: storage.forSandbox(sandboxId('unused')),
       clock,
       random,
+      metrics,
       net: { allowPrivateAddresses: options.allowPrivateWebhookTargets ?? true },
     });
 
@@ -104,6 +105,7 @@ export function createApp(options: AppOptions = {}): App {
     storage,
     now: () => clock.now(),
     uuid: () => ids.uuid(),
+    audit: storage.audit,
     notify: (sandbox, action, dataId, notificationUrl) => {
       contextFor(runtime, sandbox).events.emit({ type: 'payment', action, dataId, notificationUrl });
     },

@@ -143,6 +143,18 @@ export class SqliteWebhookRepository implements WebhookRepository {
       }));
   }
 
+  /** Counting in SQL beats materialising every delivery just to tally its status. */
+  countByStatus(): Readonly<Record<string, number>> {
+    const rows = this.db
+      .query<{ status: string; n: number }, [string]>(
+        'select status, count(*) as n from webhook_deliveries where sandbox_id = ? group by status',
+      )
+      .all(this.sandbox);
+    const out: Record<string, number> = {};
+    for (const row of rows) out[row.status] = row.n;
+    return out;
+  }
+
   recordAttempt(id: WebhookDeliveryId, attempt: Omit<WebhookAttempt, 'seq'>): void {
     this.db
       .query(

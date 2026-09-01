@@ -1,4 +1,4 @@
-import type { Clock, RandomSource, SandboxStore, WebhookDelivery } from '@payground/core';
+import { type Clock, type MetricsSink, type RandomSource, type SandboxStore, type WebhookDelivery, noopMetrics } from '@payground/core';
 import type { SafeFetchPolicy } from '../net/index.ts';
 import { safeFetch } from '../net/index.ts';
 import { ACK_TIMEOUT_MS, type RetryPolicy, DEFAULT_RETRY_POLICY, nextAttemptAt } from './policy.ts';
@@ -13,6 +13,7 @@ export interface AttemptOptions {
   store: SandboxStore;
   clock: Clock;
   random: RandomSource;
+  metrics?: MetricsSink;
   policy?: RetryPolicy;
   net?: SafeFetchPolicy;
 }
@@ -81,6 +82,11 @@ export async function attempt(
     updatedAt: finished,
   };
   store.webhooks.update(updated);
+
+  const metrics = options.metrics ?? noopMetrics;
+  const labels = { sandbox: String(delivery.sandbox), outcome: updated.status };
+  metrics.count('payground_webhook_deliveries_total', labels);
+  metrics.observe('payground_webhook_delivery_duration_ms', labels, finished - started);
 
   return { delivery: updated, statusCode, error };
 }

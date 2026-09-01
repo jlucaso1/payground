@@ -37,13 +37,12 @@ export interface WebhookStats {
   byStatus: Record<DeliveryStatus, number>;
 }
 
-/**
- * Derived from stored deliveries: the runner itself is not instrumented. Only the most recent
- * 1000 per sandbox are visible, which is the cap the repository enforces.
- */
+/** Counted in SQL, so the gauge is exact rather than capped at a page of deliveries. */
 export function webhookStats(storage: Storage, sandbox: SandboxId): WebhookStats {
-  const byStatus = Object.fromEntries(STATUSES.map((status) => [status, 0])) as Record<DeliveryStatus, number>;
-  for (const delivery of storage.forSandbox(sandbox).webhooks.list(1000)) byStatus[delivery.status] += 1;
+  const counted = storage.forSandbox(sandbox).webhooks.countByStatus();
+  const byStatus = Object.fromEntries(
+    STATUSES.map((status) => [status, counted[status] ?? 0]),
+  ) as Record<DeliveryStatus, number>;
   return { queueDepth: PENDING.reduce((total, status) => total + byStatus[status], 0), byStatus };
 }
 

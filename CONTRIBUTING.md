@@ -1,141 +1,177 @@
 # Contributing
 
-## Requirements
+## Setup
 
-Bun 1.4 or newer, and nothing else. payground has **zero runtime dependencies**; the only
-`devDependencies` are TypeScript, the Bun types and what the React dashboard needs.
+Bun 1.4 or newer. Nothing else is required.
 
 ```sh
 bun install
-bun run typecheck
-bun test packages tools
-bun run test:e2e
 ```
+
+Bun runs the TypeScript sources directly, so there is no build step for development.
+
+## The dev loop
+
+```sh
+bun run typecheck       # tsc --noEmit, then tsc --noEmit -p packages/dashboard
+bun run test            # bun test packages tools
+bun run test:e2e        # bun test e2e
+bun run build
+```
+
+`typecheck` runs twice on purpose. The dashboard needs `lib: DOM` and `jsx: react-jsx`, and
+those settings must not leak into the server packages, so `packages/dashboard` has its own
+`tsconfig.json` and its own pass.
+
+`test:e2e` runs the official `mercadopago` npm SDK against a live emulator, which is why it
+is a separate workspace with its own dependencies.
+
+`build` writes `packages/cli/dist/payground.js` and `packages/cli/dist/dashboard/`. The
+published package ships that `dist/` plus `preload.ts`, so nothing is compiled at install
+time or at run time.
+
+Three more scripts touch the vendored spec:
+
+```sh
+bun run spec:sync     # re-download the pinned upstream spec into spec/
+bun run spec:gen      # emit generated/{types,validate,routes}.ts and FIDELITY.md
+bun run spec:tables   # re-scrape the doc tables into spec/tables/ and generated/tables.ts
+```
+
+`spec:sync` and `spec:tables` reach the network. `spec:gen` does not.
 
 ## Architecture
 
-Ports and adapters, in four layers that only ever point inwards.
+Ports and adapters. Dependencies point inwards only.
 
 ```
 packages/core         the domain: money, payments, the state machine, the port interfaces
 packages/storage      the SQLite adapter that implements those ports
-packages/mercadopago  the provider adapter: wire shapes, validation, routes, webhooks
+packages/mercadopago  the provider adapter: wire shapes, validation, route inventory
 packages/server       HTTP, authentication, idempotency, the control API, webhook delivery
 packages/dashboard    the React UI, which talks only to the control API
 packages/cli          the command line, which composes the above
 ```
 
-- **`core` knows nothing about Mercado Pago.** It holds `Payment`, `PaymentStatus`,
-  `PaymentCommand` and `apply()`, plus the ports (`Clock`, `IdGenerator`, `RandomSource`,
-  the repositories). Status and reason travel together as one union, so an impossible pair
-  cannot be constructed, and `TRANSITIONS` is the whole state machine as data: nothing
-  transitions unless it is listed there.
-- **The provider decides outcomes, the domain applies them.** `create()` takes a
-  `PaymentDecision` it did not compute; the adapter derives that decision from the test
-  cardholder table, the payment method and the injected faults. No provider logic leaks
-  inwards.
-- **Amounts are minor units.** `Minor` is a branded integer; decimals exist only on the
-  wire, at the edges, through `fromDecimal`/`toDecimal`.
-- **Failure is a value.** `Result<T, E>` everywhere in the domain and the adapters;
-  exceptions are for programmer errors, not for a declined card.
-- **Tenancy is structural.** `Storage.forSandbox(id)` is the only way to reach a
-  repository, and a repository cannot express a cross-sandbox query.
-- **The clock and randomness are injected.** Nothing in the domain reads `Date.now()` or
-  `Math.random()`; tests drive `ManualClock`, `SeededIdGenerator` and `SeededRandom` from
-  `@payground/core/testing.ts`.
+`core` knows nothing about Mercado Pago. It holds `Result<T, E>`, the injected `Clock`,
+`IdGenerator` and `RandomSource` ports, the storage ports, and the payment state machine.
+`TRANSITIONS` in `packages/core/src/payment/state.ts` is that machine as a data table:
+if a transition is not listed there, it cannot happen. Amounts are `Minor`, a branded
+integer; decimals exist only on the wire, through `fromDecimal` and `toDecimal`.
 
-### Imports
+`packages/storage` is the SQLite adapter. `Storage.forSandbox(id)` is the only way to reach
+a repository, so a cross-sandbox query cannot be written down.
 
-Relative imports carry the `.ts` extension; cross-package imports use the `@payground/*`
-aliases declared in `tsconfig.json`. There is no build step for development — Bun runs the
-TypeScript sources directly.
+`packages/mercadopago` is the provider adapter, with one service module per product under
+`src/api/`. A service function takes a `ServiceContext` (the sandbox store, the clock, the
+ids) plus the raw body, validates it, and returns a `Result`. It never touches HTTP.
+
+`packages/server` composes everything. `src/routes/<product>.ts` is a route module and
+`src/routes/index.ts` is the registry that lists them. The control API lives under
+`/_payground` and never overlaps the emulated surface.
+
+`packages/dashboard` is React, built by Bun's HTML bundler from `src/index.html`.
+
+Relative imports carry the `.ts` extension. Cross-package imports use the `@payground/*`
+aliases from `tsconfig.json`.
 
 ## The generated adapter
 
-The wire layer is not hand-written. `packages/mercadopago/src/generated/` is produced from
-the vendored upstream OpenAPI document and from scraped documentation tables:
+`spec/spec3.json` is the official Mercado Pago OpenAPI document, vendored from
+`mercadopago/openapi` at the commit pinned in `tools/spec-sync/src/pin.ts`, with a sha256
+per file in `spec/spec.lock.json`. `bun run spec:sync` re-downloads that commit and rewrites
+the lock, so any upstream change shows up in the diff of both. `gen.test.ts` re-hashes the
+vendored files against the lock, which catches a local edit to `spec/`. Bumping the pin in
+`pin.ts` is a commit of its own.
 
-| File            | Contents                                             |
-| --------------- | ---------------------------------------------------- |
-| `types.ts`      | Request and response shapes                          |
-| `validate.ts`   | Validators that produce the real error envelopes     |
-| `routes.ts`     | The route inventory of the upstream specification    |
-| `tables.ts`     | Test cards, test cardholders, statuses and details   |
+`bun run spec:gen` reads `spec/spec3.json` and `spec/overlay.ts` and writes four files:
 
-Do not edit those files: they are overwritten. Change the generator, or the overlay, and
-regenerate.
+| File                                             | Contents                                   |
+| ------------------------------------------------ | ------------------------------------------ |
+| `packages/mercadopago/src/generated/types.ts`     | request and response shapes                |
+| `packages/mercadopago/src/generated/validate.ts`  | validators that produce the real envelopes |
+| `packages/mercadopago/src/generated/routes.ts`    | the 142 operations of the spec             |
+| `FIDELITY.md`                                     | every known divergence, with its source    |
 
-### Regenerating
+Never hand-edit those four. They are overwritten on every run. `generated/tables.ts` is
+also generated, by `spec:tables` from the scraped tables in `spec/tables/`.
 
-```sh
-bun run spec:sync     # re-download the pinned upstream spec into spec/, refresh spec.lock.json
-bun run spec:tables   # re-scrape the documentation tables into spec/tables/
-bun run spec:gen      # emit packages/mercadopago/src/generated/* and FIDELITY.md
-```
+The spec is shallow in places. `Payment` declares 29 properties against roughly 80 on the
+wire, and `point_of_interaction` is missing entirely, which is the whole Pix QR payload.
+`spec/overlay.ts` holds that diff, and every entry carries a `note` and the `source` URL
+its shape came from. Behaviour that is not schema-shaped goes in `DIVERGENCES` in the same
+file. `FIDELITY.md` is the rendering of both, so adding a divergence without documenting it
+is not possible.
 
-`spec:sync` fetches the commit pinned in `tools/spec-sync/src/pin.ts` and records a SHA-256
-for every file, so a regeneration is reproducible and a silent upstream change is visible
-in the diff. Bumping the pin is a deliberate commit of its own.
+CI runs `bun run spec:gen && git diff --exit-code`. Changing the generator or the overlay
+without regenerating fails the build.
 
-### The overlay, and FIDELITY.md
+## Adding an operation
 
-The upstream specification is incomplete and, in places, wrong: it omits
-`point_of_interaction` (without which there is no Pix QR code), it under-specifies refund
-statuses, and its Pix sample is not a valid EMV payload. `spec/overlay.ts` adds the
-missing shapes back and records the behavioural divergences — each entry carries a note
-and the source it came from.
+Every operation in the spec must be claimed by exactly one route module, either in
+`operations` or in `pending` with a reason. `packages/server/src/routes.test.ts` asserts
+this, so an operation cannot be forgotten quietly. All 142 are currently in `operations`.
 
-`FIDELITY.md` is generated from that overlay by `spec:gen`. **Never edit it by hand.** It
-exists so that adding a divergence without documenting it is impossible: the entry *is*
-the mechanism, and the file is its rendering. If you make payground differ from the real
-API on purpose, add a `DIVERGENCES` entry with a source, and regenerate.
+1. Write the service function in `packages/mercadopago/src/api/<product>.ts`. Return a
+   `Result`; take the clock and the ids from the `ServiceContext`. There is no random
+   source at this layer: randomness lives in the server runtime.
+2. In `packages/server/src/routes/<product>.ts`, add the `operationId` to `operations`
+   (removing it from `pending` if it was there) and register the route in `routes()`.
+   If the product is new, add its module to `packages/server/src/routes/index.ts`.
+3. If the spec omits fields the real API returns, add them to `spec/overlay.ts` with a
+   source and run `bun run spec:gen`.
+4. Add tests. `bun test packages tools`.
 
 ## Tests
 
-`bun:test`, colocated with the code (`foo.ts` next to `foo.test.ts`), except the dashboard,
-which keeps its tests in `packages/dashboard/test/`.
+`bun:test`, colocated: `foo.test.ts` next to `foo.ts`. The dashboard is the exception and
+keeps its tests in `packages/dashboard/test/`.
 
-- **Unit tests** cover the domain and each adapter in isolation, with the injected clock,
-  ids and randomness, so no test is time- or order-dependent.
-- **Storage tests** run against `Storage.open()` — an in-memory SQLite database with the
-  real migrations applied. There is no mock repository: the adapter is cheap enough to use
-  for real.
-- **HTTP tests** start a real server on port `0` and speak to it with `fetch`, so routing,
-  authentication and idempotency are exercised the way a client would.
-- **Property and fuzz tests** (`*.fuzz.test.ts`) drive the state machine, the storage
-  round-trip, the generated validators and the SSRF guard with seeded random input. A
-  failing seed is reproducible; keep the seed in the test when you fix one.
-- **End-to-end tests** (`bun run test:e2e`) run the *official* Mercado Pago Node SDK
-  against payground, and decode the Pix QR code with a third-party decoder. They are the
-  only tests allowed to depend on third-party packages, which is why `e2e` is its own
-  workspace.
-- **CLI tests** run each command against an in-memory database through an injected
-  environment, and assert exit codes: `0` success, `1` failure, `2` bad usage.
+Property tests are named `*.fuzz.test.ts` and hold their seed in the file, as a literal
+passed to `SeededRandom`. When a seed finds a bug, keep that seed.
 
-New behaviour needs a test that fails without it. New divergence from the real API needs a
-`FIDELITY.md` entry, which means an overlay or divergence entry with a source.
+For HTTP tests, use `startTestServer()` from `packages/server/src/testing.ts`. It binds
+port 0, gives you `api()` and `control()` helpers, a `ManualClock` you control and manual
+webhook draining.
 
-## Building and releasing
+Determinism is a hard rule:
 
-```sh
-bun run build           # dist/payground.js (bundled CLI) + dist/dashboard (assets)
-bun run build:cli
-bun run build:dashboard
-```
+- No `Date.now()` and no `Math.random()` in production code. Take a `Clock`, an
+  `IdGenerator` or a `RandomSource`.
+- Tests use `ManualClock`, `SeededIdGenerator` and `SeededRandom` from
+  `@payground/core/testing.ts`.
+- No sleeps. Advance the clock instead.
 
-The published package ships `dist/` only: `payground start` finds the dashboard assets
-next to the bundled CLI, so no build ever runs at install time or at runtime. The
-Tailwind plugin is marked external in the bundle for that reason — `payground
-build-dashboard` therefore only works from a checkout with the dev dependencies installed.
+Storage tests run against `Storage.open()`, an in-memory database with the real migrations
+applied. There is no mock repository.
 
-`Dockerfile` repeats the same two steps in a build stage and copies `dist/` into a slim
-runtime image that runs as the non-root `bun` user.
+New behaviour needs a test that fails without it.
 
 ## Style
 
-- TypeScript at maximum strictness (`noUncheckedIndexedAccess`,
-  `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, …). `bun run typecheck` must pass.
-- Make invalid states unrepresentable rather than validating them later.
-- Comments explain *why*, and are worth writing when the reason is a quirk of the real
-  API — with the link. Do not narrate the code.
-- English everywhere: code, comments, commit messages.
+- Zero runtime dependencies is a hard constraint. `dependencies` stays empty in every
+  package manifest, including the workspace root. The only third-party packages are dev
+  dependencies: TypeScript, the Bun types, React and Tailwind for the dashboard, and, in
+  `e2e`, the Mercado Pago SDK plus the QR and Pix decoders the tests check its output with.
+- TypeScript at maximum strictness: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+  `verbatimModuleSyntax`. `bun run typecheck` must pass.
+- Make invalid states unrepresentable instead of validating them later. `PaymentStatus`
+  carries the state and its reason as one union, so an impossible pair cannot be built.
+- Errors are values. Return `Result`. Exceptions are for programmer bugs.
+- Comment only where the reason is not obvious from the code. A comment about real API
+  behaviour cites the URL it came from.
+- English everywhere: code, comments, commit messages. One line per commit message.
+
+## Reporting a fidelity bug
+
+A fidelity bug is payground behaving differently from the real Mercado Pago API. A useful
+report has four parts:
+
+1. The request: method, path, headers that matter, and the body.
+2. What payground returned: status code and body, verbatim.
+3. What the real API returns for the same request.
+4. The evidence: a link to the Mercado Pago documentation page, the relevant OpenAPI
+   operation, the SDK source, or a redacted response you captured yourself.
+
+Point 4 is the one that turns a report into a fix. Without a source, a change to match your
+observation cannot be recorded in `FIDELITY.md`, and it will not be merged.

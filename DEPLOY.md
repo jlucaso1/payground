@@ -27,6 +27,7 @@ Recognised environment variables:
 | `PAYGROUND_DB`        | `.payground/payground.sqlite` (`/data/payground.sqlite` in the image) | SQLite file, or `:memory:` |
 | `PAYGROUND_BASE_URL`  | derived from host and port   | Public origin advertised to clients  |
 | `PAYGROUND_DASHBOARD` | `dist/dashboard` next to the CLI | Prebuilt dashboard assets        |
+| `PAYGROUND_RETENTION_DAYS` | unset (keep everything) | Prune data older than this many days |
 
 ### From the published package
 
@@ -118,30 +119,72 @@ payground start --base-url https://payground.example.com --no-bootstrap
 
 payground itself speaks plain HTTP and has no TLS configuration: give it a proxy.
 
-## Backups
+## Backups, snapshots and retention
 
-The whole state is one SQLite file (plus its WAL sidecars). Two rules:
+The whole state is one SQLite file (plus its WAL sidecars), and the CLI can act on it
+without a `sqlite3` binary — which the runtime image does not ship.
 
-- Never copy `payground.sqlite` with `cp` while the process is running — you will capture
-  a torn snapshot. Use SQLite's own backup, which is consistent under concurrent writes:
+### Whole-database backup
 
-  ```sh
-  sqlite3 /data/payground.sqlite ".backup '/backup/payground-$(date +%F).sqlite'"
-  ```
+`payground backup` serialises the database through SQLite itself, so it is consistent even
+while the server writes:
 
-  The runtime image has no `sqlite3` binary, so from Docker either stop the service and
-  copy the file, or mount the volume into a throwaway container that has one.
+```sh
+payground backup --db /data/payground.sqlite --out /backup/payground-$(date +%F).sqlite
+```
 
-- Restoring is a file copy with the service stopped:
+Never copy `payground.sqlite` with `cp` while the process is running: you would capture a
+torn snapshot. Restoring is a file copy with the service stopped:
 
-  ```sh
-  docker compose stop payground
-  cp /backup/payground-2026-08-28.sqlite /var/lib/docker/volumes/…/payground.sqlite
-  docker compose start payground
-  ```
+```sh
+docker compose stop payground
+cp /backup/payground-2026-08-28.sqlite /var/lib/docker/volumes/…/payground.sqlite
+docker compose start payground
+```
 
 Migrations run automatically on open and are recorded in `schema_migrations`, so restoring
 an older file into a newer binary upgrades it in place. The reverse is not supported.
+
+### Moving one sandbox between instances
+
+`payground export` writes a self-describing JSON document — schema version, export time,
+and each sandbox's credentials, payments, timelines, refunds, documents, webhook
+deliveries and attempts. Request and audit logs are left out: they are operational noise.
+
+```sh
+payground export --db /data/payground.sqlite --sandbox $ID --out staging.json
+payground import --db ./local.sqlite --in staging.json
+```
+
+`import` refuses a schema version it does not understand, and refuses to overwrite an
+existing sandbox unless `--replace` is given. `--as <new-id>` restores the snapshot under
+a different id, so it can sit next to the original; if the exported access token or public
+key is already taken, a fresh pair is minted and reported.
+
+A delivery that was still queued or retrying when the snapshot was taken is due again as
+soon as a server opens the restored database, so importing a snapshot from a live instance
+sends webhooks to the URLs recorded in it. `payground reset` first if that is not wanted.
+
+### Retention
+
+A shared instance grows forever: the request history keeps bodies, and every webhook
+attempt is stored. Prune it, in days, per family of data:
+
+```sh
+payground prune --db /data/payground.sqlite --requests 7 --audit 30 --webhooks 14 --dry-run
+payground prune --db /data/payground.sqlite --requests 7 --audit 30 --webhooks 14
+```
+
+`--dry-run` reports what would go without deleting it. `--payments <days>` also drops the
+payments themselves, together with their timelines and refunds. `--webhooks` only touches
+deliveries that are done — delivered or exhausted — so it never pulls a row out from under
+the delivery runner.
+
+`export`, `backup` and `prune` refuse a `--db` that does not exist, so a typo in a cron
+line fails loudly instead of producing an empty snapshot.
+
+To keep it automatic, `payground start --retention-days 30` (or `PAYGROUND_RETENTION_DAYS`)
+prunes every family on boot and hourly after that.
 
 Because the data is disposable by definition, "no backups at all, recreate the sandboxes"
 is a legitimate strategy for CI deployments.

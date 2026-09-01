@@ -2,7 +2,11 @@
 import { VERSION } from '@payground/server';
 import { OK, USAGE_ERROR, flag, parseOptions } from './args.ts';
 import { type Env, defaultEnv } from './env.ts';
+import { runBackup } from './commands/backup.ts';
 import { runBuildDashboard } from './commands/build-dashboard.ts';
+import { runExport } from './commands/export.ts';
+import { runImport } from './commands/import.ts';
+import { runPrune } from './commands/prune.ts';
 import { runReset } from './commands/reset.ts';
 import { runSandbox } from './commands/sandbox.ts';
 import { runSeed } from './commands/seed.ts';
@@ -16,6 +20,10 @@ Usage: payground <command> [options]
   seed              Write deterministic sample payments
   reset             Delete the data of one or every sandbox
   sandbox           list | create --name <name> | show <id> | delete <id>
+  export            Write a JSON snapshot of the sandboxes
+  import            Restore a JSON snapshot into an instance
+  backup            Write a consistent copy of the whole database
+  prune             Delete rows older than a given age
   build-dashboard   Build the dashboard assets
 
   -h, --help        Show this help
@@ -60,6 +68,14 @@ export async function main(argv: readonly string[], env: Env = defaultEnv()): Pr
       return runReset(rest, env);
     case 'sandbox':
       return runSandbox(rest, env);
+    case 'export':
+      return await runExport(rest, env);
+    case 'import':
+      return await runImport(rest, env);
+    case 'backup':
+      return await runBackup(rest, env);
+    case 'prune':
+      return runPrune(rest, env);
     case 'build-dashboard':
       return await runBuildDashboard(rest, env);
     default:

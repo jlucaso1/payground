@@ -73,9 +73,15 @@ Requires Bun 1.4 or newer. There are no runtime dependencies.
 ```
 payground start   [--port <n>] [--host <addr>] [--db <path>] [--base-url <url>]
                   [--dashboard <dir>] [--no-bootstrap] [--block-private-webhooks]
+                  [--retention-days <n>]
 payground seed    [--db <path>] [--sandbox <id>] [--payments <n>] [--seed <n>]
 payground reset   [--db <path>] [--sandbox <id>]
 payground sandbox list | create --name <name> | show <id> | delete <id>
+payground export  --db <path> [--sandbox <id>] [--out <file>]
+payground import  --db <path> --in <file> [--as <new-sandbox-id>] [--replace]
+payground backup  --db <path> --out <file>
+payground prune   --db <path> [--requests <days>] [--audit <days>] [--webhooks <days>]
+                  [--payments <days>] [--dry-run]
 payground build-dashboard [--out <dir>]
 payground --version | --help
 ```

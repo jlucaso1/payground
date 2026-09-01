@@ -1,5 +1,5 @@
 import { Storage } from '@payground/storage';
-import type { Env, Io } from './env.ts';
+import { type Env, type Io, openDatabase, openStorage } from './env.ts';
 
 export interface TestEnv {
   env: Env;
@@ -12,8 +12,13 @@ export interface TestEnv {
  * Commands close the database they open, so the shared in-memory instance is handed out
  * behind an object whose `close` does nothing. That keeps one database alive across the
  * several commands a test runs.
+ *
+ * `files: true` opts out of that: every command opens the real path it was given, which is
+ * what the export, import, backup and prune commands need.
  */
-export function testEnv(options: { now?: number; variables?: Record<string, string | undefined> } = {}): TestEnv {
+export function testEnv(
+  options: { now?: number; variables?: Record<string, string | undefined>; files?: boolean } = {},
+): TestEnv {
   const storage = Storage.open();
   const out: string[] = [];
   const err: string[] = [];
@@ -23,7 +28,14 @@ export function testEnv(options: { now?: number; variables?: Record<string, stri
   const env: Env = {
     io,
     variables: options.variables ?? {},
-    openStorage: () => Object.create(storage, { close: { value: () => undefined } }) as Storage,
+    openStorage: options.files === true
+      ? openStorage
+      : () => Object.create(storage, { close: { value: () => undefined } }) as Storage,
+    openDatabase: options.files === true
+      ? openDatabase
+      : () => {
+          throw new Error('testEnv: pass { files: true } to open a database');
+        },
     now: () => options.now ?? 1_700_000_000_000,
     uuid: () => `00000000-0000-4000-8000-${String(++counter).padStart(12, '0')}`,
     waitForShutdown: () => Promise.resolve(),

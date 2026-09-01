@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+bun.lock linguist-generated=true
+
+# Written by `bun run spec:gen` and `bun run spec:tables`.
+FIDELITY.md linguist-generated=true
+packages/mercadopago/src/generated/*.ts linguist-generated=true
+
+# Fetched from mercadopago/openapi, pinned by sha256 in spec/spec.lock.json.
+spec/spec3.json linguist-vendored=true
+spec/fixtures3.json linguist-vendored=true
+spec/overlays/MLB.yaml linguist-vendored=true

@@ -1,0 +1,14 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Vendored upstream files, hashed byte for byte in spec/spec.lock.json.
+[spec/{spec3.json,fixtures3.json,overlays/MLB.yaml}]
+insert_final_newline = false
+trim_trailing_whitespace = false

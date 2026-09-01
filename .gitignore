@@ -1,7 +1,22 @@
-.claude/worktrees/
-dist/
 node_modules/
-packages/cli/dist/
+dist/
+
+# Runtime state: the default database directory and any SQLite file.
 .payground/
 *.sqlite
 *.sqlite-*
+
+# Bun auto-loads .env files, so a local one is easy to create and easy to leak.
+.env
+.env.*
+!.env.example
+
+# Private planning material.
+docs/
+
+.claude/worktrees/
+
+# Editor and OS noise.
+.DS_Store
+.idea/
+.vscode/

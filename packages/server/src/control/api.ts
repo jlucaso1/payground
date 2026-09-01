@@ -150,6 +150,27 @@ export function getSandbox(deps: ControlDeps, id: string): ControlResult {
   };
 }
 
+export function renameSandbox(deps: ControlDeps, id: string, body: unknown): ControlResult {
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+
+  const name = isJsonObject(body) ? body['name'] : undefined;
+  if (typeof name !== 'string' || name.trim() === '') return fail(400, 'name is required');
+
+  deps.storage.sandboxes.rename(sandboxId(id), name.trim());
+  deps.audit?.record({
+    id: deps.uuid(),
+    at: deps.now(),
+    actor: deps.actor ?? { kind: 'admin' },
+    action: 'sandbox.renamed',
+    target: `sandbox:${id}`,
+    sandbox: sandboxId(id),
+    detail: { from: found.sandbox.name, to: name.trim() },
+  });
+
+  return getSandbox(deps, id);
+}
+
 export function resetSandbox(deps: ControlDeps, id: string): ControlResult {
   if (resolve(deps, id) === null) return fail(404, 'sandbox not found');
   deps.storage.sandboxes.reset(sandboxId(id));

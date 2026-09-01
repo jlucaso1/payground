@@ -62,6 +62,10 @@ export class SqliteSandboxRegistry implements SandboxRegistry {
     return this.db.query<Row, []>(`${SELECT} order by created_at`).all().map(toSandbox);
   }
 
+  rename(id: SandboxId, name: string): boolean {
+    return this.db.query('update sandboxes set name = ? where id = ?').run(name, id).changes > 0;
+  }
+
   /** Drops the sandbox's data but keeps its credentials, so tests can start over. */
   reset(id: SandboxId): void {
     this.db.transaction(() => {

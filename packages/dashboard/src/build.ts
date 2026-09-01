@@ -20,6 +20,10 @@ export async function buildDashboard(options: BuildDashboardOptions): Promise<Bu
     target: 'browser',
     minify: options.minify ?? true,
     sourcemap: options.sourcemap === true ? 'linked' : 'none',
+    // The dashboard is served under /_payground, so chunk URLs must be root-absolute:
+    // a relative ./chunk-x.js resolves to /chunk-x.js and never reaches the handler.
+    naming: { chunk: 'assets/[name]-[hash].[ext]', asset: 'assets/[name]-[hash].[ext]' },
+    publicPath: '/_payground/',
     plugins: [tailwind],
     define: { 'process.env.NODE_ENV': JSON.stringify('production') },
   });

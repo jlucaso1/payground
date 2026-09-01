@@ -86,6 +86,7 @@ export interface SandboxRegistry {
   byAccessToken(token: string): Sandbox | null;
   byPublicKey(key: string): Sandbox | null;
   list(): readonly Sandbox[];
+  rename(id: SandboxId, name: string): boolean;
   reset(id: SandboxId): void;
   remove(id: SandboxId): void;
 }

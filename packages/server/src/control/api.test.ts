@@ -330,3 +330,36 @@ describe('admin token gating', () => {
     await response.json();
   });
 });
+
+describe('renaming a sandbox', () => {
+  test('changes the name and reports it back', async () => {
+    const app = start();
+    const renamed = await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, { name: 'staging' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.name).toBe('staging');
+    expect((await app.call('GET', '/_payground/sandboxes')).body[0].name).toBe('staging');
+  });
+
+  test('trims the name and refuses an empty or missing one', async () => {
+    const app = start();
+    expect((await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, { name: '  spaced  ' })).body.name).toBe('spaced');
+    expect((await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, { name: '   ' })).status).toBe(400);
+    expect((await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, {})).status).toBe(400);
+    expect((await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, { name: 7 })).status).toBe(400);
+  });
+
+  test('leaves the credentials and the data untouched', async () => {
+    const app = start();
+    await app.api('POST', '/v1/payments', pix);
+    await app.call('PUT', `/_payground/sandboxes/${app.sandbox.id}`, { name: 'renamed' });
+
+    const detail = await app.call('GET', `/_payground/sandboxes/${app.sandbox.id}`);
+    expect(detail.body.accessToken).toBe('TEST-a');
+    expect(detail.body.counts.payments).toBe(1);
+  });
+
+  test('an unknown sandbox is a 404', async () => {
+    const app = start();
+    expect((await app.call('PUT', '/_payground/sandboxes/ghost', { name: 'x' })).status).toBe(404);
+  });
+});

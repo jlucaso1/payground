@@ -138,6 +138,7 @@ export function createApp(options: AppOptions = {}): App {
     },
     '/_payground/sandboxes/:id': {
       GET: admin((request) => send(control.getSandbox(deps, path(request, 'id')))),
+      PUT: admin(async (request) => send(control.renameSandbox(deps, path(request, 'id'), await json(request)))),
       DELETE: admin((request) => send(control.deleteSandbox(deps, path(request, 'id')))),
     },
     '/_payground/sandboxes/:id/reset': {

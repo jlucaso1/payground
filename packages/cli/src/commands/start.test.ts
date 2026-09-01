@@ -36,6 +36,12 @@ describe('start', () => {
     expect(err[0]).toContain('no dashboard assets in /tmp/payground-no-dashboard');
   });
 
+  test('rejects an invalid drain timeout', async () => {
+    const { env, err } = testEnv();
+    expect(await main(['start', '--port', '0', '--drain-timeout', 'soon'], env)).toBe(2);
+    expect(err[0]).toContain('--drain-timeout must be an integer');
+  });
+
   test('rejects an invalid port', async () => {
     const { env, err } = testEnv();
     expect(await main(['start', '--port', '70000'], env)).toBe(2);

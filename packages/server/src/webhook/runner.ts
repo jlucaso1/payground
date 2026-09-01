@@ -1,6 +1,7 @@
-import type { Clock, RandomSource, SandboxStore, WebhookDelivery } from '@payground/core';
+import type { Clock, DeliveryQueue, RandomSource, SandboxId, SandboxStore, WebhookDelivery } from '@payground/core';
 import type { SafeFetchPolicy } from '../net/index.ts';
 import { safeFetch } from '../net/index.ts';
+import { type Lease, claim, databaseOf, release, renew } from './lease.ts';
 import { ACK_TIMEOUT_MS, type RetryPolicy, DEFAULT_RETRY_POLICY, nextAttemptAt } from './policy.ts';
 
 export interface DeliveryResult {
@@ -87,27 +88,67 @@ export async function attempt(
 
 export interface RunnerOptions extends AttemptOptions {
   batchSize?: number;
+  /** Identifies this instance in the lease. Defaults to the process id. */
+  owner?: string;
+  leaseMs?: number;
 }
 
-export interface Drainable {
-  due(at: number, limit: number): readonly { sandbox: string; delivery: WebhookDelivery }[];
-}
+/**
+ * Names the instance in the lease. Correctness does not rest on it being unique — a lease
+ * is ended only by the holder of its exact expiry stamp — so a process id, which needs
+ * neither the clock nor randomness, is enough to tell instances apart while reading rows.
+ */
+const INSTANCE = `pid-${process.pid}`;
 
-/** Delivers everything that is due right now. Returns how many attempts were made. */
+/**
+ * Delivers everything that is due right now. Returns how many deliveries were attempted.
+ * Every delivery is claimed with a lease first, so instances sharing a database file never
+ * send the same notification twice. Never throws: the caller drives it from a timer.
+ */
 export async function drain(
-  queue: { due: (at: number, limit: number) => readonly { delivery: WebhookDelivery }[] },
-  storeFor: (delivery: WebhookDelivery) => SandboxStore,
+  queue: DeliveryQueue,
+  storeFor: (ref: { sandbox: SandboxId }) => SandboxStore,
   options: RunnerOptions,
 ): Promise<number> {
-  const now = options.clock.now();
-  const batch = queue.due(now, options.batchSize ?? 25);
-
-  for (const entry of batch) {
-    const store = storeFor(entry.delivery);
-    const faults = store.faults.get();
-    await attempt(entry.delivery, { ...options, store });
-    if (faults.duplicateWebhooks) await attempt(entry.delivery, { ...options, store });
+  const db = databaseOf(queue);
+  const owner = options.owner ?? INSTANCE;
+  let claimed: readonly Lease[];
+  try {
+    claimed = claim(db, {
+      now: options.clock.now(),
+      limit: options.batchSize ?? 25,
+      owner,
+      ...(options.leaseMs === undefined ? {} : { leaseMs: options.leaseMs }),
+    });
+  } catch {
+    // Another instance holds the write lock for longer than the busy timeout; the next tick retries.
+    return 0;
   }
 
-  return batch.length;
+  let attempted = 0;
+  for (const lease of claimed) {
+    try {
+      const store = storeFor(lease);
+      const delivery = store.webhooks.get(lease.id);
+      if (delivery === null) {
+        release(db, lease);
+        continue;
+      }
+      // The batch is delivered one at a time and an unreachable target holds the loop for
+      // the whole ack timeout, so the lease is stretched again right before each attempt.
+      const held = renew(db, lease, options.clock.now(), options.leaseMs);
+      if (held === null) continue;
+
+      const faults = store.faults.get();
+      await attempt(delivery, { ...options, store });
+      if (faults.duplicateWebhooks) await attempt(delivery, { ...options, store });
+      attempted += 1;
+      release(db, held);
+    } catch {
+      // Keep the lease: an attempt that died halfway is reclaimable once it expires, the
+      // same way a crashed instance is. Releasing here would strand a `sending` row.
+    }
+  }
+
+  return attempted;
 }

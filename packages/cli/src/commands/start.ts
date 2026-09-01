@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, createServer, type ServerOptions } from '@payground/server';
+import { DEFAULT_DRAIN_TIMEOUT_MS, VERSION, createServer, type ServerOptions } from '@payground/server';
 import { FAILURE, OK, USAGE_ERROR, flag, integer, parseOptions, text } from '../args.ts';
 import { DEFAULT_DB, type Env } from '../env.ts';
 
@@ -16,6 +16,8 @@ export const START_USAGE = `Usage: payground start [options]
                    Generated and printed when omitted; --no-admin-token disables it
   --no-admin-token Leave the control API open (only safe on a private instance)
   --no-bootstrap   Start without creating a default sandbox
+  --drain-timeout <ms>
+                   How long a shutdown waits for in-flight requests (default ${DEFAULT_DRAIN_TIMEOUT_MS})
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -48,6 +50,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'admin-token': { type: 'string' },
     'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
+    'drain-timeout': { type: 'string' },
     'block-private-webhooks': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   });
@@ -65,6 +68,11 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
   const port = integer(portRaw, 'port', 0, 65535);
   if (!port.ok) {
     env.io.err(port.message);
+    return USAGE_ERROR;
+  }
+  const drainTimeout = integer(text(parsed.values, 'drain-timeout') ?? String(DEFAULT_DRAIN_TIMEOUT_MS), 'drain-timeout', 0, 600_000);
+  if (!drainTimeout.ok) {
+    env.io.err(drainTimeout.message);
     return USAGE_ERROR;
   }
   const host = text(parsed.values, 'host') ?? env.variables['PAYGROUND_HOST'] ?? '127.0.0.1';
@@ -144,9 +152,9 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
 
   await env.waitForShutdown(origin);
 
-  await server.stop(true);
+  const outcome = await server.drain(drainTimeout.value);
   storage.close();
-  env.io.out('payground stopped');
+  env.io.out(outcome === 'drained' ? 'payground stopped' : 'payground stopped (in-flight requests cut short)');
   return OK;
 }
 

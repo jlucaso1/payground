@@ -1018,9 +1018,103 @@ export function validateStoreRequest(value: unknown): Result<T.StoreRequest, Iss
 }
 
 export function checkStore(value: unknown, path: string, out: Issue[]): void {
-  void value;
-  void path;
-  void out;
+  if (!isObject(value)) {
+    out.push({ path: path, message: 'expected object' });
+  } else {
+    const v1: unknown = value["id"];
+    if (v1 === undefined) {
+      out.push({ path: path + ".id", message: 'required' });
+    } else {
+      if (typeof v1 !== 'string') out.push({ path: path + ".id", message: 'expected string' });
+    }
+    const v2: unknown = value["user_id"];
+    if (v2 !== undefined) {
+      if (typeof v2 !== 'number' || !Number.isInteger(v2)) out.push({ path: path + ".user_id", message: 'expected integer' });
+    }
+    const v3: unknown = value["name"];
+    if (v3 === undefined) {
+      out.push({ path: path + ".name", message: 'required' });
+    } else {
+      if (typeof v3 !== 'string') out.push({ path: path + ".name", message: 'expected string' });
+    }
+    const v4: unknown = value["external_id"];
+    if (v4 !== undefined) {
+      if (v4 !== null) {
+        if (typeof v4 !== 'string') out.push({ path: path + ".external_id", message: 'expected string' });
+      }
+    }
+    const v5: unknown = value["business_hours"];
+    if (v5 !== undefined) {
+      if (!isObject(v5)) out.push({ path: path + ".business_hours", message: 'expected object' });
+    }
+    const v6: unknown = value["location"];
+    if (v6 !== undefined) {
+      if (!isObject(v6)) {
+        out.push({ path: path + ".location", message: 'expected object' });
+      } else {
+        const v7: unknown = v6["street_number"];
+        if (v7 !== undefined) {
+          if (v7 !== null) {
+            if (typeof v7 !== 'string') out.push({ path: path + ".location" + ".street_number", message: 'expected string' });
+          }
+        }
+        const v8: unknown = v6["street_name"];
+        if (v8 !== undefined) {
+          if (v8 !== null) {
+            if (typeof v8 !== 'string') out.push({ path: path + ".location" + ".street_name", message: 'expected string' });
+          }
+        }
+        const v9: unknown = v6["city_name"];
+        if (v9 !== undefined) {
+          if (v9 !== null) {
+            if (typeof v9 !== 'string') out.push({ path: path + ".location" + ".city_name", message: 'expected string' });
+          }
+        }
+        const v10: unknown = v6["state_name"];
+        if (v10 !== undefined) {
+          if (v10 !== null) {
+            if (typeof v10 !== 'string') out.push({ path: path + ".location" + ".state_name", message: 'expected string' });
+          }
+        }
+        const v11: unknown = v6["zip_code"];
+        if (v11 !== undefined) {
+          if (v11 !== null) {
+            if (typeof v11 !== 'string') out.push({ path: path + ".location" + ".zip_code", message: 'expected string' });
+          }
+        }
+        const v12: unknown = v6["reference"];
+        if (v12 !== undefined) {
+          if (v12 !== null) {
+            if (typeof v12 !== 'string') out.push({ path: path + ".location" + ".reference", message: 'expected string' });
+          }
+        }
+        const v13: unknown = v6["latitude"];
+        if (v13 !== undefined) {
+          if (v13 !== null) {
+            if (typeof v13 !== 'number' || !Number.isFinite(v13)) out.push({ path: path + ".location" + ".latitude", message: 'expected number' });
+          }
+        }
+        const v14: unknown = v6["longitude"];
+        if (v14 !== undefined) {
+          if (v14 !== null) {
+            if (typeof v14 !== 'number' || !Number.isFinite(v14)) out.push({ path: path + ".location" + ".longitude", message: 'expected number' });
+          }
+        }
+      }
+    }
+    const v15: unknown = value["date_created"];
+    if (v15 !== undefined) {
+      if (v15 !== null) {
+        if (typeof v15 !== 'string') out.push({ path: path + ".date_created", message: 'expected string' });
+      }
+    }
+    const v16: unknown = value["date_last_updated"];
+    if (v16 !== undefined) {
+      if (v16 !== null) {
+        if (typeof v16 !== 'string') out.push({ path: path + ".date_last_updated", message: 'expected string' });
+      }
+    }
+  }
 }
 
 export function validateStore(value: unknown): Result<T.Store, Issue[]> {
@@ -1075,9 +1169,97 @@ export function validatePOSRequest(value: unknown): Result<T.POSRequest, Issue[]
 }
 
 export function checkPOS(value: unknown, path: string, out: Issue[]): void {
-  void value;
-  void path;
-  void out;
+  if (!isObject(value)) {
+    out.push({ path: path, message: 'expected object' });
+  } else {
+    const v1: unknown = value["id"];
+    if (v1 === undefined) {
+      out.push({ path: path + ".id", message: 'required' });
+    } else {
+      if (typeof v1 !== 'number' || !Number.isInteger(v1)) out.push({ path: path + ".id", message: 'expected integer' });
+    }
+    const v2: unknown = value["user_id"];
+    if (v2 !== undefined) {
+      if (typeof v2 !== 'number' || !Number.isInteger(v2)) out.push({ path: path + ".user_id", message: 'expected integer' });
+    }
+    const v3: unknown = value["name"];
+    if (v3 === undefined) {
+      out.push({ path: path + ".name", message: 'required' });
+    } else {
+      if (typeof v3 !== 'string') out.push({ path: path + ".name", message: 'expected string' });
+    }
+    const v4: unknown = value["store_id"];
+    if (v4 === undefined) {
+      out.push({ path: path + ".store_id", message: 'required' });
+    } else {
+      if (typeof v4 !== 'string') out.push({ path: path + ".store_id", message: 'expected string' });
+    }
+    const v5: unknown = value["external_id"];
+    if (v5 !== undefined) {
+      if (v5 !== null) {
+        if (typeof v5 !== 'string') out.push({ path: path + ".external_id", message: 'expected string' });
+      }
+    }
+    const v6: unknown = value["external_store_id"];
+    if (v6 !== undefined) {
+      if (v6 !== null) {
+        if (typeof v6 !== 'string') out.push({ path: path + ".external_store_id", message: 'expected string' });
+      }
+    }
+    const v7: unknown = value["category"];
+    if (v7 !== undefined) {
+      if (typeof v7 !== 'number' || !Number.isInteger(v7)) out.push({ path: path + ".category", message: 'expected integer' });
+    }
+    const v8: unknown = value["fixed_amount"];
+    if (v8 !== undefined) {
+      if (typeof v8 !== 'boolean') out.push({ path: path + ".fixed_amount", message: 'expected boolean' });
+    }
+    const v9: unknown = value["url"];
+    if (v9 !== undefined) {
+      if (v9 !== null) {
+        if (typeof v9 !== 'string') out.push({ path: path + ".url", message: 'expected string' });
+      }
+    }
+    const v10: unknown = value["status"];
+    if (v10 !== undefined) {
+      if (v10 !== "active" && v10 !== "inactive") out.push({ path: path + ".status", message: 'not one of the allowed values' });
+    }
+    const v11: unknown = value["qr"];
+    if (v11 !== undefined) {
+      if (!isObject(v11)) {
+        out.push({ path: path + ".qr", message: 'expected object' });
+      } else {
+        const v12: unknown = v11["image"];
+        if (v12 !== undefined) {
+          if (typeof v12 !== 'string') out.push({ path: path + ".qr" + ".image", message: 'expected string' });
+        }
+        const v13: unknown = v11["template_document"];
+        if (v13 !== undefined) {
+          if (typeof v13 !== 'string') out.push({ path: path + ".qr" + ".template_document", message: 'expected string' });
+        }
+        const v14: unknown = v11["template_image"];
+        if (v14 !== undefined) {
+          if (typeof v14 !== 'string') out.push({ path: path + ".qr" + ".template_image", message: 'expected string' });
+        }
+      }
+    }
+    const v15: unknown = value["qr_code"];
+    if (v15 !== undefined) {
+      if (typeof v15 !== 'string') out.push({ path: path + ".qr_code", message: 'expected string' });
+    }
+    const v16: unknown = value["date_created"];
+    if (v16 !== undefined) {
+      if (v16 !== null) {
+        if (typeof v16 !== 'string') out.push({ path: path + ".date_created", message: 'expected string' });
+      }
+    }
+    const v17: unknown = value["date_last_updated"];
+    if (v17 !== undefined) {
+      if (v17 !== null) {
+        if (typeof v17 !== 'string') out.push({ path: path + ".date_last_updated", message: 'expected string' });
+      }
+    }
+  }
 }
 
 export function validatePOS(value: unknown): Result<T.POS, Issue[]> {

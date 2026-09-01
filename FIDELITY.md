@@ -34,6 +34,22 @@ Added: `payment_method_id`, `three_ds_mode`, `point_of_interaction`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/payments/_payments/post
 
+### `Store`
+
+The spec models Store as allOf(StoreRequest, {id, date_created, date_last_updated}); the type emitter does not flatten allOf, so the response came out as `unknown`. The flattened shape is spelled out here, plus `user_id` (the collector that owns the store) and the `reference` the API returns inside `location`. `business_hours` is left open because the spec types only `monday`.
+
+Added: `id`, `user_id`, `name`, `external_id`, `business_hours`, `location`, `date_created`, `date_last_updated`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/stores/_users_user_id_stores/post
+
+### `POS`
+
+Same allOf gap as Store. The flattened shape also carries what the spec omits: the numeric `id` the API returns, the owning `user_id`, `status`, and the `qr` object with the image and the printable templates, which is the whole point of a point of sale.
+
+Added: `id`, `user_id`, `name`, `store_id`, `external_id`, `external_store_id`, `category`, `fixed_amount`, `url`, `status`, `qr`, `qr_code`, `date_created`, `date_last_updated`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
+
 ## Behavioural divergences
 
 ### Payments — Payment `id` is a number on the resource and a string in search results
@@ -77,4 +93,28 @@ Source: https://github.com/mercadopago/sdk-nodejs — dist/clients/payment/index
 fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.
 
 Source: https://github.com/mercadopago/openapi — fixtures3.yaml
+
+### Stores and points of sale — A store that still owns a point of sale is not deleted
+
+The reference documents no outcome for DELETE /users/{user_id}/stores/{id} when points of sale still hang off the store. payground refuses with 400 rather than cascading, because silently destroying every POS — and its QR codes — on a delete is the more damaging of the two guesses. Delete the points of sale first.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/stores/_users_user_id_stores_id/delete
+
+### Stores and points of sale — A duplicate external_id is rejected with 400, not 409
+
+external_id is unique per collector for both stores and points of sale. The POS reference describes a 409 `point_of_sale_exists` for the duplicate, but the vendored spec3.json declares only 201, 400 and 401 for createPOS. payground answers 400 for both resources, so the two stay consistent with each other and with the vendored contract.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
+
+### Stores and points of sale — PUT /pos/{id} merges the fields it is given
+
+The spec declares POSRequest — with name and store_id required — as the body of updatePOS. payground treats the update as a merge, so `{"status":"inactive"}` alone is enough to disable a point of sale and an omitted field keeps its value. A full body behaves identically, so integrations written against the real API keep working.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos_id/put
+
+### Stores and points of sale — The printable POS QR document is HTML, not PDF
+
+On the real API `qr.template_document` is a PDF. payground renders no PDFs, so it serves the same printable page as HTML at the URL it advertises, and `qr.image` and `qr.template_image` as real PNGs of the QR. Every URL a POS advertises is served by payground rather than pointing at mercadopago.com.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
 

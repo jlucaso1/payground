@@ -167,6 +167,63 @@ export const OVERLAY: readonly OverlayEntry[] = [
       },
     },
   },
+  {
+    schema: 'Store',
+    note: 'The spec models Store as allOf(StoreRequest, {id, date_created, date_last_updated}); the type emitter does not flatten allOf, so the response came out as `unknown`. The flattened shape is spelled out here, plus `user_id` (the collector that owns the store) and the `reference` the API returns inside `location`. `business_hours` is left open because the spec types only `monday`.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/stores/_users_user_id_stores/post',
+    required: ['id', 'name'],
+    properties: {
+      id: { type: 'string' },
+      user_id: { type: 'integer' },
+      name: { type: 'string' },
+      external_id: { type: ['string', 'null'] },
+      business_hours: { type: 'object' },
+      location: {
+        type: 'object',
+        properties: {
+          street_number: { type: ['string', 'null'] },
+          street_name: { type: ['string', 'null'] },
+          city_name: { type: ['string', 'null'] },
+          state_name: { type: ['string', 'null'] },
+          zip_code: { type: ['string', 'null'] },
+          reference: { type: ['string', 'null'] },
+          latitude: { type: ['number', 'null'] },
+          longitude: { type: ['number', 'null'] },
+        },
+      },
+      date_created: dateTime,
+      date_last_updated: dateTime,
+    },
+  },
+  {
+    schema: 'POS',
+    note: 'Same allOf gap as Store. The flattened shape also carries what the spec omits: the numeric `id` the API returns, the owning `user_id`, `status`, and the `qr` object with the image and the printable templates, which is the whole point of a point of sale.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post',
+    required: ['id', 'name', 'store_id'],
+    properties: {
+      id: { type: 'integer' },
+      user_id: { type: 'integer' },
+      name: { type: 'string' },
+      store_id: { type: 'string' },
+      external_id: { type: ['string', 'null'] },
+      external_store_id: { type: ['string', 'null'] },
+      category: { type: 'integer' },
+      fixed_amount: { type: 'boolean' },
+      url: { type: ['string', 'null'] },
+      status: { type: 'string', enum: ['active', 'inactive'] },
+      qr: {
+        type: 'object',
+        properties: {
+          image: { type: 'string' },
+          template_document: { type: 'string' },
+          template_image: { type: 'string' },
+        },
+      },
+      qr_code: { type: 'string' },
+      date_created: dateTime,
+      date_last_updated: dateTime,
+    },
+  },
 ];
 
 export const DIVERGENCES: readonly Divergence[] = [
@@ -220,5 +277,33 @@ export const DIVERGENCES: readonly Divergence[] = [
     detail:
       'fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.',
     source: 'https://github.com/mercadopago/openapi — fixtures3.yaml',
+  },
+  {
+    area: 'Stores and points of sale',
+    summary: 'A store that still owns a point of sale is not deleted',
+    detail:
+      'The reference documents no outcome for DELETE /users/{user_id}/stores/{id} when points of sale still hang off the store. payground refuses with 400 rather than cascading, because silently destroying every POS — and its QR codes — on a delete is the more damaging of the two guesses. Delete the points of sale first.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/stores/_users_user_id_stores_id/delete',
+  },
+  {
+    area: 'Stores and points of sale',
+    summary: 'A duplicate external_id is rejected with 400, not 409',
+    detail:
+      'external_id is unique per collector for both stores and points of sale. The POS reference describes a 409 `point_of_sale_exists` for the duplicate, but the vendored spec3.json declares only 201, 400 and 401 for createPOS. payground answers 400 for both resources, so the two stay consistent with each other and with the vendored contract.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post',
+  },
+  {
+    area: 'Stores and points of sale',
+    summary: 'PUT /pos/{id} merges the fields it is given',
+    detail:
+      'The spec declares POSRequest — with name and store_id required — as the body of updatePOS. payground treats the update as a merge, so `{"status":"inactive"}` alone is enough to disable a point of sale and an omitted field keeps its value. A full body behaves identically, so integrations written against the real API keep working.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos_id/put',
+  },
+  {
+    area: 'Stores and points of sale',
+    summary: 'The printable POS QR document is HTML, not PDF',
+    detail:
+      'On the real API `qr.template_document` is a PDF. payground renders no PDFs, so it serves the same printable page as HTML at the URL it advertises, and `qr.image` and `qr.template_image` as real PNGs of the QR. Every URL a POS advertises is served by payground rather than pointing at mercadopago.com.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post',
   },
 ];

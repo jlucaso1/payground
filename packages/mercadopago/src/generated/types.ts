@@ -234,7 +234,25 @@ export interface StoreRequest {
   };
 }
 
-export type Store = unknown;
+export interface Store {
+  id: string;
+  user_id?: number;
+  name: string;
+  external_id?: string | null;
+  business_hours?: Record<string, unknown>;
+  location?: {
+    street_number?: string | null;
+    street_name?: string | null;
+    city_name?: string | null;
+    state_name?: string | null;
+    zip_code?: string | null;
+    reference?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  date_created?: string | null;
+  date_last_updated?: string | null;
+}
 
 export interface POSRequest {
   name: string;
@@ -246,7 +264,26 @@ export interface POSRequest {
   url?: string;
 }
 
-export type POS = unknown;
+export interface POS {
+  id: number;
+  user_id?: number;
+  name: string;
+  store_id: string;
+  external_id?: string | null;
+  external_store_id?: string | null;
+  category?: number;
+  fixed_amount?: boolean;
+  url?: string | null;
+  status?: "active" | "inactive";
+  qr?: {
+    image?: string;
+    template_document?: string;
+    template_image?: string;
+  };
+  qr_code?: string;
+  date_created?: string | null;
+  date_last_updated?: string | null;
+}
 
 /** Pagination metadata returned in list/search responses */
 export interface Pagination {

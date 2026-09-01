@@ -34,7 +34,10 @@ async function start(db: string): Promise<Instance> {
     stderr: 'pipe',
   });
   const exited = child.exited;
-  running.push({ origin: '', token: '', process: child, exited } as Instance);
+  // Registered by identity, not by position: two overlapping start() calls would otherwise
+  // overwrite each other's slot and leave a child alive after the database is deleted.
+  const slot: Instance = { origin: '', token: '', process: child, exited };
+  running.push(slot);
 
   let banner = '';
   const decoder = new TextDecoder();
@@ -52,9 +55,9 @@ async function start(db: string): Promise<Instance> {
     throw new Error(`no banner from the instance: ${banner}${failure}`);
   }
 
-  const instance = { origin, token, process: child, exited };
-  running[running.length - 1] = instance;
-  return instance;
+  slot.origin = origin;
+  slot.token = token;
+  return slot;
 }
 
 function tempDb(): string {

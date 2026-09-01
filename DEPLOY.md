@@ -29,10 +29,15 @@ health-checks `/_payground/health`. Set `PAYGROUND_BASE_URL` to the origin your
 integrators will actually reach. It is embedded in Pix payloads, ticket URLs and checkout
 links, so a wrong value produces QR codes that point at the wrong host.
 
-### From the published package
+### From a clone
+
+There is no published npm package yet, so build from source and run the bundle:
 
 ```sh
-bunx payground start --host 0.0.0.0 --db /var/lib/payground/payground.sqlite \
+git clone https://github.com/jlucaso1/payground.git && cd payground
+bun install && bun run build
+bun packages/cli/dist/payground.js start --host 0.0.0.0 \
+  --db /var/lib/payground/payground.sqlite \
   --base-url https://payground.example.com --block-private-webhooks
 ```
 

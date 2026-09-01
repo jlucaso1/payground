@@ -288,6 +288,8 @@ surface. It is what the dashboard talks to, and what a test suite uses to force 
 | `GET`        | `/_payground/sandboxes/{id}/webhooks`               | Deliveries and attempts                |
 | `POST`       | `/_payground/sandboxes/{id}/webhooks/{wid}/replay`  | Replay a delivery                      |
 | `GET/PUT`    | `/_payground/sandboxes/{id}/faults`                 | Latency, error rate, unavailability, duplicate and failing webhooks |
+| `GET`        | `/_payground/metrics`                               | Prometheus text, or `?format=json` for a summary |
+| `GET`        | `/_payground/sandboxes/{id}/metrics`                | Per-sandbox rollup, in JSON            |
 
 Actions: `settle`, `review`, `decline` (`reason`), `expire`, `cancel` (`by`), `capture`
 (`amount`), `refund` (`amount`), `dispute`, `resolve` (`outcome`). Only transitions the
@@ -301,6 +303,41 @@ curl -X POST http://127.0.0.1:8080/_payground/sandboxes/$SANDBOX/payments/$PAYME
 > The control API is **unauthenticated by design**, so that a test suite does not need
 > credentials to drive it. Never expose `/_payground/` on a public deployment without
 > putting authentication in front of it — see [DEPLOY.md](DEPLOY.md).
+
+## Metrics
+
+`GET /_payground/metrics` exposes the in-process registry in the Prometheus text
+exposition format (`text/plain; version=0.0.4`). It needs the admin token like the rest
+of the control API.
+
+| Metric                              | Type      | Labels                             |
+| ----------------------------------- | --------- | ---------------------------------- |
+| `payground_api_requests_total`       | counter   | `route`, `method`, `status`, `sandbox` |
+| `payground_api_request_duration_ms`  | histogram | `route`, `method`, `status`, `sandbox` |
+| `payground_webhook_deliveries`       | gauge     | `sandbox`, `status`                |
+| `payground_webhook_queue_depth`      | gauge     | `sandbox`                          |
+
+`route` is the spec path (`/v1/payments/:id`), never a real identifier, so the label
+cardinality stays bounded. `sandbox` is `anonymous` for an unauthenticated call. The
+webhook series are derived from the stored deliveries, where `status` is one of `queued`,
+`sending`, `delivered`, `retrying` or `exhausted`; queue depth counts the ones not yet
+delivered or exhausted. They are gauges because a delivery moves between statuses, and
+they only see the most recent 1000 deliveries per sandbox, so they saturate there.
+
+`?format=json` returns a summary instead — request and error totals, the error rate,
+p50/p95/p99 estimated from the histogram buckets, and the same broken down per route.
+`GET /_payground/sandboxes/{id}/metrics` is the same summary for one sandbox, plus its
+webhook counts.
+
+```yaml
+scrape_configs:
+  - job_name: payground
+    metrics_path: /_payground/metrics
+    authorization:
+      credentials: <admin token>
+    static_configs:
+      - targets: ['127.0.0.1:8080']
+```
 
 ## Dashboard
 

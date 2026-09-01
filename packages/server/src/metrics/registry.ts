@@ -18,10 +18,11 @@ export interface HistogramSample {
 export const DEFAULT_BUCKETS: readonly number[] = [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 
 const key = (name: string, labels: Readonly<Record<string, string>>): string => {
+  // JSON-encoded so a value containing a separator cannot collide with a different label set.
   const parts = Object.keys(labels)
     .sort()
-    .map((label) => `${label}=${labels[label] ?? ''}`);
-  return `${name} ${parts.join(',')}`;
+    .map((label) => `${JSON.stringify(label)}:${JSON.stringify(labels[label] ?? '')}`);
+  return `${JSON.stringify(name)} ${parts.join(',')}`;
 };
 
 interface Series {

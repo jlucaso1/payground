@@ -1,53 +1,12 @@
 import { type Clock, type IdGenerator, type RandomSource, type Sandbox, sandboxId } from '@payground/core';
-import { createCardToken, getCardToken } from '@payground/mercadopago/api/card-tokens.ts';
-import {
-  addTransaction,
-  cancelOrder,
-  captureOrder,
-  createOrder,
-  deleteTransaction,
-  getOrder,
-  processOrder,
-  refundOrder,
-  searchOrders,
-  updateTransaction,
-} from '@payground/mercadopago/api/orders.ts';
-import { getMerchantOrder, searchMerchantOrders } from '@payground/mercadopago/api/merchant-orders.ts';
-import { listPaymentMethods } from '@payground/mercadopago/api/payment-methods.ts';
-import {
-  createPreference,
-  getPreference,
-  searchPreferences,
-  updatePreference,
-} from '@payground/mercadopago/api/preferences.ts';
-import { paymentTicket } from '@payground/mercadopago/api/ticket.ts';
-import { checkoutPage, checkoutSubmit } from '@payground/mercadopago/checkout/page.ts';
-import {
-  createPlan,
-  createSubscription,
-  getAuthorizedPayment,
-  getPlan,
-  getSubscription,
-  searchAuthorizedPayments,
-  searchPlans,
-  searchSubscriptions,
-  updatePlan,
-  updateSubscription,
-} from '@payground/mercadopago/api/subscriptions.ts';
-import {
-  createPayment,
-  createRefund,
-  getPayment,
-  listRefunds,
-  searchPayments,
-  updatePayment,
-} from '@payground/mercadopago/api/payments.ts';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { Storage } from '@payground/storage';
 import { dashboardHandler } from './dashboard.ts';
 import { health } from './health.ts';
 import * as control from './control/api.ts';
-import { type AppRuntime, contextFor, endpoint, fromResult } from './http/handler.ts';
+import { MODULES } from './routes/index.ts';
+import type { ModuleDeps } from './routes/module.ts';
+import { type AppRuntime, contextFor } from './http/handler.ts';
 import { drain } from './webhook/runner.ts';
 import { SystemIdGenerator, systemClock, systemRandom } from './runtime.ts';
 
@@ -124,35 +83,7 @@ export function createApp(options: AppOptions = {}): App {
   const send = (result: control.ControlResult) => Response.json(result.body, { status: result.status });
   const path = (request: Request, name: string): string => param(request, name);
 
-  /** The hosted checkout page stands in for the Mercado Pago redirect flow. */
-  async function checkout(request: Request, preferenceId: string): Promise<Response> {
-    const sandbox = storage.sandboxes.list()[0];
-    if (sandbox === undefined) return new Response('no sandbox', { status: 404 });
-    const service = contextFor(runtime, sandbox);
-
-    if (request.method === 'GET') {
-      const rendered = checkoutPage(service, preferenceId);
-      return rendered.ok
-        ? new Response(rendered.value.html, {
-            status: rendered.value.status,
-            headers: { 'content-type': 'text/html; charset=utf-8' },
-          })
-        : Response.json(rendered.error, { status: rendered.error.status });
-    }
-
-    const form = new URLSearchParams(await request.text());
-    const submitted = checkoutSubmit(service, preferenceId, form);
-    if (!submitted.ok) return Response.json(submitted.error, { status: submitted.error.status });
-    if (submitted.value.redirect !== null) {
-      return Response.redirect(submitted.value.redirect, 303);
-    }
-    return new Response(submitted.value.html, {
-      status: submitted.value.status,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  const routes = {
+  const routes: Record<string, unknown> = {
     '/_payground/health': () => Response.json(health(clock, startedAt)),
     ...(options.dashboardRoot === undefined
       ? {}
@@ -198,162 +129,10 @@ export function createApp(options: AppOptions = {}): App {
       PUT: async (request: Request) => send(control.setFaults(deps, path(request, 'id'), await json(request))),
     },
 
-    '/checkout/preferences': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createPreference(service, body))),
-    },
-    '/checkout/preferences/search': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchPreferences(service, url.searchParams))),
-    },
-    '/checkout/preferences/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getPreference(service, param(request, 'id')))),
-      PUT: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(updatePreference(service, param(request, 'id'), body)),
-      ),
-    },
-    '/merchant_orders/search': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchMerchantOrders(service, url.searchParams))),
-    },
-    '/merchant_orders/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getMerchantOrder(service, param(request, 'id')))),
-    },
-
-    '/payments/:id/ticket': {
-      GET: async (request: Request) => {
-        const sandbox = storage.sandboxes.list()[0];
-        if (sandbox === undefined) return new Response('no sandbox', { status: 404 });
-        const rendered = paymentTicket(contextFor(runtime, sandbox), param(request, 'id'));
-        return rendered.ok
-          ? new Response(rendered.value.html, {
-              status: rendered.value.status,
-              headers: { 'content-type': 'text/html; charset=utf-8' },
-            })
-          : Response.json(rendered.error, { status: rendered.error.status });
-      },
-    },
-
-    '/checkout/:id': {
-      GET: (request: Request) => checkout(request, param(request, 'id')),
-      POST: (request: Request) => checkout(request, param(request, 'id')),
-    },
-
-    '/v1/orders': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createOrder(service, body)), {
-        idempotency: 'required',
-      }),
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchOrders(service, url.searchParams))),
-    },
-    '/v1/orders/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getOrder(service, param(request, 'id')))),
-    },
-    '/v1/orders/:id/process': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(processOrder(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/orders/:id/capture': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(captureOrder(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/orders/:id/cancel': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(cancelOrder(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/orders/:id/refund': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(refundOrder(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/orders/:id/transactions': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(addTransaction(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/orders/:id/transactions/:tid': {
-      PUT: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(updateTransaction(service, param(request, 'id'), param(request, 'tid'), body)),
-      ),
-      DELETE: endpoint(runtime, ({ service, request }) =>
-        fromResult(deleteTransaction(service, param(request, 'id'), param(request, 'tid'))),
-      ),
-    },
-
-    '/preapproval_plan': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createPlan(service, body))),
-    },
-    '/preapproval_plan/search': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchPlans(service, url.searchParams))),
-    },
-    '/preapproval_plan/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getPlan(service, param(request, 'id')))),
-      PUT: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(updatePlan(service, param(request, 'id'), body)),
-      ),
-    },
-    '/preapproval': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createSubscription(service, body))),
-    },
-    '/preapproval/search': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchSubscriptions(service, url.searchParams))),
-    },
-    '/preapproval/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getSubscription(service, param(request, 'id')))),
-      PUT: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(updateSubscription(service, param(request, 'id'), body)),
-      ),
-    },
-    '/authorized_payments': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchAuthorizedPayments(service, url.searchParams))),
-    },
-    '/authorized_payments/:id': {
-      GET: endpoint(runtime, ({ service, request }) =>
-        fromResult(getAuthorizedPayment(service, param(request, 'id'))),
-      ),
-    },
-
-    '/v1/card_tokens': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createCardToken(service, body)), {
-        accepts: ['access_token', 'public_key'],
-      }),
-    },
-    '/v1/card_tokens/:id': {
-      GET: endpoint(runtime, ({ service, request }) => fromResult(getCardToken(service, param(request, 'id'))), {
-        accepts: ['access_token', 'public_key'],
-      }),
-    },
-    '/v1/payment_methods': {
-      GET: endpoint(runtime, ({ service }) => fromResult(listPaymentMethods(service)), {
-        accepts: ['access_token', 'public_key'],
-      }),
-    },
-
-    '/v1/payments': {
-      POST: endpoint(runtime, ({ service, body }) => fromResult(createPayment(service, body)), {
-        idempotency: 'required',
-      }),
-    },
-    '/v1/payments/search': {
-      GET: endpoint(runtime, ({ service, url }) => fromResult(searchPayments(service, url.searchParams))),
-    },
-    '/v1/payments/:id': {
-      GET: endpoint(runtime, ({ service, request }) =>
-        fromResult(getPayment(service, param(request, 'id'))),
-      ),
-      PUT: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(updatePayment(service, param(request, 'id'), body)),
-      ),
-    },
-    '/v1/payments/:id/refunds': {
-      POST: endpoint(runtime, ({ service, request, body }) =>
-        fromResult(createRefund(service, param(request, 'id'), body)),
-        { idempotency: 'optional' },
-      ),
-      GET: endpoint(runtime, ({ service, request }) =>
-        fromResult(listRefunds(service, param(request, 'id'))),
-      ),
-    },
   };
+
+  const moduleDeps: ModuleDeps = { runtime, storage, param, json };
+  for (const module of MODULES) Object.assign(routes, module.routes(moduleDeps));
 
   const interval = options.deliveryIntervalMs ?? 1_000;
   const timer =

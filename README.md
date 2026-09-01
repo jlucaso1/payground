@@ -74,7 +74,9 @@ Requires Bun 1.4 or newer. There are no runtime dependencies.
 payground start   [--port <n>] [--host <addr>] [--db <path>] [--base-url <url>]
                   [--dashboard <dir>] [--no-bootstrap] [--block-private-webhooks]
                   [--retention-days <n>]
+                  [--strict]
 payground seed    [--db <path>] [--sandbox <id>] [--payments <n>] [--seed <n>]
+payground doctor  [--db <path>] [--sandbox <id>] [--format text|json]
 payground reset   [--db <path>] [--sandbox <id>]
 payground sandbox list | create --name <name> | show <id> | delete <id>
 payground export  --db <path> [--sandbox <id>] [--out <file>]
@@ -86,8 +88,8 @@ payground build-dashboard [--out <dir>]
 payground --version | --help
 ```
 
-`start`, `seed`, `reset` and `sandbox` also read `PAYGROUND_PORT`, `PAYGROUND_HOST`,
-`PAYGROUND_DB`, `PAYGROUND_BASE_URL` and `PAYGROUND_DASHBOARD`.
+`start`, `seed`, `doctor`, `reset` and `sandbox` read `PAYGROUND_DB`; `start` also reads
+`PAYGROUND_PORT`, `PAYGROUND_HOST`, `PAYGROUND_BASE_URL` and `PAYGROUND_DASHBOARD`.
 
 `seed` is deterministic: the same `--seed` and the same clock always produce the same
 payments, spread over every state — approved, pending, expired, declined, in review,
@@ -277,6 +279,67 @@ Webhook targets on private addresses are allowed by default, because delivering 
 `localhost` is the whole point of a local sandbox. On a shared deployment, start with
 `--block-private-webhooks`; see [DEPLOY.md](DEPLOY.md).
 
+## Going to production
+
+The question payground exists to answer is "when I flip my environment variables back to
+the real Mercado Pago, will everything still work?". Two tools answer it, both driven by
+the vendored OpenAPI specification.
+
+**`payground doctor`** replays the recorded request history — every call payground
+answered is stored, body included — against the specification and reports, for the
+endpoints you actually used: which operations are faithfully emulated and which are still
+stubs, which of your request bodies the real API would refuse, which responses payground
+emits that the specification does not describe, and which of the known divergences in
+[FIDELITY.md](FIDELITY.md) you are exposed to. It exits `1` when there is a blocking
+finding, so it can gate a pipeline.
+
+```sh
+payground start --db ci.sqlite &
+# … run your integration test suite against payground …
+payground doctor --db ci.sqlite            # or --format json, or --sandbox <id>
+```
+
+```
+payground doctor — 3 requests recorded in ci.sqlite
+
+Operations used
+  createPayment                   2  emulated (payments)
+  searchPayments                  1  emulated (payments)
+
+Requests the real API would reject
+  POST /v1/payments  1 call  (PaymentRequest)
+    not_a_real_field — not documented by the specification
+
+Responses payground emits that the specification does not describe
+  searchPayments 200  1 call
+    results[].id — expected integer
+
+Known divergences you are exposed to
+  Payments — Payment `id` is a number on the resource and a string in search results
+    https://github.com/mercadopago/sdk-nodejs — clients/payment/search/types.ts
+
+Verdict: 1 blocking finding — this breaks against https://api.mercadopago.com:
+  - 1 call to POST /v1/payments sends a body the real API would refuse: not_a_real_field not documented by the specification
+```
+
+Request bodies are kept in the history so the doctor can replay them; `card_number`,
+`security_code` and `cvv` are redacted before they are written, and a body over the
+history size limit is dropped rather than truncated. The same report is served as JSON at
+`GET /_payground/parity` (control API, admin token), optionally narrowed with
+`?sandbox=<id>`.
+
+**`payground start --strict`** turns the report into a gate at request time: every request
+body is validated against the specification before it is handled, and anything the real
+API would refuse — an undocumented field, a value outside an enum, a missing required
+field — is answered with `400` instead of being accepted. Credentials are still checked
+first, so a strict instance never turns a `401` into a `400`. In strict mode the responses
+payground emits are validated too; a divergence there is recorded in the parity report
+rather than failing the call, which is how payground finds its own drift.
+
+Strict mode is **off by default**: payground is deliberately more permissive than the real
+API, so that a test suite is not blocked by a field the vendored specification simply does
+not document yet.
+
 ## Control API
 
 payground's own API lives under `/_payground/` and is never mixed with the emulated
@@ -291,6 +354,7 @@ surface. It is what the dashboard talks to, and what a test suite uses to force 
 | `GET`        | `/_payground/sandboxes/{id}/payments`               | `state`, `method`, `external_reference`, paging |
 | `GET`        | `/_payground/sandboxes/{id}/payments/{pid}`         | Payment, timeline and refunds          |
 | `POST`       | `/_payground/sandboxes/{id}/payments/{pid}/actions` | Force a transition                     |
+| `GET`        | `/_payground/parity`                                | Parity report (`?sandbox=<id>`)        |
 | `GET`        | `/_payground/sandboxes/{id}/webhooks`               | Deliveries and attempts                |
 | `POST`       | `/_payground/sandboxes/{id}/webhooks/{wid}/replay`  | Replay a delivery                      |
 | `GET/PUT`    | `/_payground/sandboxes/{id}/faults`                 | Latency, error rate, unavailability, duplicate and failing webhooks |

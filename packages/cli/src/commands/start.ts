@@ -34,6 +34,8 @@ export const START_USAGE = `Usage: payground start [options]
                    on boot and hourly after that (env PAYGROUND_RETENTION_DAYS)
   --drain-timeout <ms>
                    How long a shutdown waits for in-flight requests (default ${DEFAULT_DRAIN_TIMEOUT_MS})
+  --strict         Refuse requests the real Mercado Pago API would refuse, and record
+                   every response that diverges from the specification
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -117,6 +119,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'no-bootstrap': { type: 'boolean' },
     'retention-days': { type: 'string' },
     'drain-timeout': { type: 'string' },
+    strict: { type: 'boolean' },
     'block-private-webhooks': { type: 'boolean' },
     'rate-limit': { type: 'string' },
     'rate-burst': { type: 'string' },
@@ -206,6 +209,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     ...(flag(parsed.values, 'block-private-webhooks') ? { allowPrivateWebhookTargets: false } : {}),
     ...(flag(parsed.values, 'no-bootstrap') ? { bootstrap: false as const } : {}),
     ...(rateLimit.value === null ? {} : { rateLimiter: rateLimit.value.limiter }),
+    strict: flag(parsed.values, 'strict'),
   };
 
   let server: ReturnType<typeof createServer>;
@@ -245,6 +249,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
       ? label('rate limit', 'off')
       : label('rate limit', `${rateLimit.value.ratePerSecond}/s per sandbox, burst ${rateLimit.value.burst}`),
   );
+  if (flag(parsed.values, 'strict')) env.io.out(label('strict mode', 'on — requests are validated against the specification'));
   env.io.out(label('health', `${origin}/_payground/health`));
 
   let retention: Retention | null = null;

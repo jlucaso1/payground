@@ -7,6 +7,7 @@ import { runBuildDashboard } from './commands/build-dashboard.ts';
 import { runExport } from './commands/export.ts';
 import { runImport } from './commands/import.ts';
 import { runPrune } from './commands/prune.ts';
+import { runDoctor } from './commands/doctor.ts';
 import { runReset } from './commands/reset.ts';
 import { runSandbox } from './commands/sandbox.ts';
 import { runSeed } from './commands/seed.ts';
@@ -18,6 +19,7 @@ Usage: payground <command> [options]
 
   start             Run the sandbox server
   seed              Write deterministic sample payments
+  doctor            Check the recorded traffic against the official specification
   reset             Delete the data of one or every sandbox
   sandbox           list | create --name <name> | show <id> | delete <id>
   export            Write a JSON snapshot of the sandboxes
@@ -64,6 +66,8 @@ export async function main(argv: readonly string[], env: Env = defaultEnv()): Pr
       return await runStart(rest, env);
     case 'seed':
       return runSeed(rest, env);
+    case 'doctor':
+      return runDoctor(rest, env);
     case 'reset':
       return runReset(rest, env);
     case 'sandbox':

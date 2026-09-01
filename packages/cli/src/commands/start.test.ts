@@ -25,6 +25,27 @@ describe('start', () => {
     expect(storage.sandboxes.list()).toHaveLength(0);
   });
 
+  test('--strict validates the bodies it is sent', async () => {
+    const { env, out } = testEnv();
+    let rejected: { status: number; body: { error?: string } } | null = null;
+    env.waitForShutdown = async (url) => {
+      const response = await fetch(`${url}/v1/payments`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${(out.join('\n').match(/access token\s+(TEST-\S+)/) ?? [])[1] ?? ''}`,
+          'x-idempotency-key': 'k',
+        },
+        body: JSON.stringify({ transaction_amount: 1, payment_method_id: 'pix', payer: { email: 'a@b.c' }, nope: 1 }),
+      });
+      rejected = { status: response.status, body: (await response.json()) as { error?: string } };
+    };
+
+    expect(await main(['start', '--port', '0', '--db', ':memory:', '--strict'], env)).toBe(0);
+    expect(out.join('\n')).toContain('strict mode     on');
+    expect(rejected).toMatchObject({ status: 400, body: { error: 'bad_request' } });
+  });
+
   test('reads the port from the environment', async () => {
     const { env } = testEnv({ variables: { PAYGROUND_PORT: 'abc' } });
     expect(await main(['start'], env)).toBe(2);

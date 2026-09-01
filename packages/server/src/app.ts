@@ -1,7 +1,17 @@
-import { type Clock, type IdGenerator, type RandomSource, type Sandbox, sandboxId } from '@payground/core';
+import {
+  type Clock,
+  type IdGenerator,
+  type MetricsSink,
+  type RandomSource,
+  type RateLimiter,
+  type Sandbox,
+  noopRateLimiter,
+  sandboxId,
+} from '@payground/core';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { Storage } from '@payground/storage';
 import { dashboardHandler } from './dashboard.ts';
+import { MetricsRegistry } from './metrics/index.ts';
 import { health } from './health.ts';
 import * as control from './control/api.ts';
 import { requireAdmin } from './control/auth.ts';
@@ -33,6 +43,10 @@ export interface AppOptions {
    * user-supplied URLs cannot reach internal services.
    */
   allowPrivateWebhookTargets?: boolean;
+  metrics?: MetricsSink;
+  rateLimiter?: RateLimiter;
+  /** Response bodies longer than this are not kept in the request history. 0 disables it. */
+  historyBodyLimit?: number;
   /**
    * Gates the whole control API. Null or empty leaves it open, which is only safe for a
    * private local instance — a shared one must set it.
@@ -47,6 +61,7 @@ export interface AppOptions {
 export interface App {
   runtime: AppRuntime;
   adminToken: string | null;
+  metrics: MetricsSink;
   routes: Record<string, unknown>;
   defaultSandbox: Sandbox | null;
   /** Delivers everything currently due. Exposed so tests never need to wait. */
@@ -59,12 +74,18 @@ export function createApp(options: AppOptions = {}): App {
   const clock = options.clock ?? systemClock;
   const ids = options.ids ?? new SystemIdGenerator();
   const random = options.random ?? systemRandom;
+  const metrics = options.metrics ?? new MetricsRegistry();
   const runtime: AppRuntime = {
     storage,
     clock,
     ids,
     baseUrl: options.baseUrl ?? 'http://127.0.0.1:8080',
     random,
+    metrics,
+    requests: storage.requests,
+    audit: storage.audit,
+    rateLimiter: options.rateLimiter ?? noopRateLimiter,
+    historyBodyLimit: options.historyBodyLimit ?? 16_384,
     ...(options.events === undefined ? {} : { events: options.events }),
   };
 
@@ -164,6 +185,7 @@ export function createApp(options: AppOptions = {}): App {
   return {
     runtime,
     adminToken,
+    metrics,
     routes: withTrailingSlashAliases(routes),
     defaultSandbox,
     drainWebhooks,

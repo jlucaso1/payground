@@ -1,8 +1,18 @@
-import type { Clock, IdGenerator, RandomSource, Sandbox, SandboxRegistry } from '@payground/core';
+import type {
+  ApiRequestLog,
+  AuditLog,
+  Clock,
+  IdGenerator,
+  MetricsSink,
+  RandomSource,
+  RateLimiter,
+  Sandbox,
+  SandboxRegistry,
+} from '@payground/core';
 import type { ServiceContext } from '@payground/mercadopago/api/context.ts';
 import type { EventSink } from '@payground/mercadopago/api/context.ts';
 import { enqueue } from '../webhook/enqueue.ts';
-import { type ErrorBody, errorResponse, serverError } from '@payground/mercadopago/errors.ts';
+import { type ErrorBody, errorResponse, serverError, tooManyRequests } from '@payground/mercadopago/errors.ts';
 import type { Storage } from '@payground/storage';
 import { type CredentialKind, authenticate } from './auth.ts';
 import { check, fingerprint, remember } from './idempotency.ts';
@@ -13,6 +23,12 @@ export interface AppRuntime {
   ids: IdGenerator;
   baseUrl: string;
   random: RandomSource;
+  metrics: MetricsSink;
+  requests: ApiRequestLog;
+  audit: AuditLog;
+  rateLimiter: RateLimiter;
+  /** Bodies larger than this are not kept in the request history. */
+  historyBodyLimit: number;
   /** Set for tests that want to observe notices instead of queueing deliveries. */
   events?: EventSink;
 }
@@ -28,6 +44,8 @@ export interface RequestScope {
 export type Endpoint = (scope: RequestScope) => { status: number; body: unknown } | Promise<{ status: number; body: unknown }>;
 
 export interface EndpointOptions {
+  /** Spec path, used as the metrics and history label so ids do not explode cardinality. */
+  route?: string;
   accepts?: readonly CredentialKind[];
   /** Mercado Pago requires X-Idempotency-Key on payment creation. */
   idempotency?: 'required' | 'optional' | 'off';
@@ -72,14 +90,41 @@ export function serviceFor(runtime: AppRuntime, registry: SandboxRegistry, id: s
   return sandbox === null ? null : contextFor(runtime, sandbox);
 }
 
+const NUMERIC = /^\d+$/;
+/** Any long segment carrying a digit is an id: uuids, sequences, and the two combined. */
+const IDENTIFIER = /^(?=.*\d)[0-9a-zA-Z_.-]{8,}$/;
+
+/** Keeps metric and history labels bounded: /v1/payments/123 becomes /v1/payments/:id. */
+export function normaliseRoute(pathname: string): string {
+  return pathname
+    .split('/')
+    .map((segment) => (NUMERIC.test(segment) || IDENTIFIER.test(segment) ? ':id' : segment))
+    .join('/');
+}
+
 export function endpoint(runtime: AppRuntime, handler: Endpoint, options: EndpointOptions = {}) {
   const accepts = options.accepts ?? ['access_token'];
   const mode = options.idempotency ?? 'off';
 
-  return async (request: Request): Promise<Response> => {
-    const url = new URL(request.url);
+  const run = async (
+    request: Request,
+    url: URL,
+    observed: { sandbox: Sandbox | null },
+  ): Promise<Response> => {
     const principal = authenticate(runtime.storage.sandboxes, request, url, accepts);
     if (!principal.ok) return errorResponse(principal.error);
+    observed.sandbox = principal.value.sandbox;
+
+    const limit = runtime.rateLimiter.take(principal.value.sandbox.id, runtime.clock.now());
+    if (!limit.allowed) {
+      return new Response(JSON.stringify(tooManyRequests()), {
+        status: 429,
+        headers: {
+          'content-type': 'application/json',
+          'retry-after': String(Math.ceil(limit.retryAfterMs / 1000)),
+        },
+      });
+    }
 
     const rawBody = request.method === 'GET' || request.method === 'DELETE' ? '' : await request.text();
     let body: unknown = undefined;
@@ -142,6 +187,43 @@ export function endpoint(runtime: AppRuntime, handler: Endpoint, options: Endpoi
       status: result.status,
       headers: { 'content-type': 'application/json' },
     });
+  };
+
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    const route = options.route ?? normaliseRoute(url.pathname);
+    const started = runtime.clock.now();
+    const observed: { sandbox: Sandbox | null } = { sandbox: null };
+
+    const response = await run(request, url, observed);
+    const durationMs = Math.max(runtime.clock.now() - started, 0);
+    const labels = {
+      route,
+      method: request.method,
+      status: String(response.status),
+      sandbox: observed.sandbox?.id ?? 'anonymous',
+    };
+    runtime.metrics.count('payground_api_requests_total', labels);
+    runtime.metrics.observe('payground_api_request_duration_ms', labels, durationMs);
+
+    // Cloning keeps the caller's response untouched while the history keeps a copy.
+    const responseBody = runtime.historyBodyLimit > 0 ? await response.clone().text() : '';
+    runtime.requests.record({
+      id: runtime.ids.uuid(),
+      at: started,
+      sandbox: observed.sandbox?.id ?? null,
+      method: request.method,
+      route,
+      path: url.pathname,
+      status: response.status,
+      durationMs,
+      requestBody: null,
+      responseBody: responseBody === '' || responseBody.length > runtime.historyBodyLimit ? null : responseBody,
+      idempotencyKey: request.headers.get('x-idempotency-key'),
+      userAgent: request.headers.get('user-agent'),
+    });
+
+    return response;
   };
 }
 

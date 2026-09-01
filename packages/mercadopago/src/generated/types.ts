@@ -635,6 +635,8 @@ export interface ReportConfig {
   separator?: "," | ";" | "";
   display_timezone?: string;
   notification_email_list?: string[];
+  column_separator?: "," | ";" | "\t";
+  scheduled?: boolean;
 }
 
 /** Request body to generate a one-time report */
@@ -652,7 +654,7 @@ export interface ReportTask {
   created_at?: string;
   updated_at?: string;
   download_url?: string | null;
-  file_name?: string;
+  file_name?: string | null;
 }
 
 /** A generated report file entry */

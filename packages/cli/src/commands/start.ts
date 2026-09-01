@@ -28,11 +28,22 @@ export const START_USAGE = `Usage: payground start [options]
 
 const DASHBOARD_PATH = '/_payground';
 
-/** The bundled CLI ships its assets in dist/dashboard, next to itself. */
+/**
+ * The bundled CLI ships its assets in dist/dashboard next to itself; from a source
+ * checkout `bun run build:dashboard` writes them to packages/cli/dist/dashboard.
+ */
 function findDashboard(explicit: string | undefined, variables: Record<string, string | undefined>): string | null {
-  const beside = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
+  const here = dirname(fileURLToPath(import.meta.url));
   const candidates = explicit === undefined
-    ? [variables['PAYGROUND_DASHBOARD'], beside, 'dist/dashboard', 'packages/dashboard/dist']
+    ? [
+        variables['PAYGROUND_DASHBOARD'],
+        join(here, 'dashboard'),
+        join(here, '..', 'dist', 'dashboard'),
+        join(here, '..', '..', 'dist', 'dashboard'),
+        'packages/cli/dist/dashboard',
+        'dist/dashboard',
+        'packages/dashboard/dist',
+      ]
     : [explicit];
   for (const candidate of candidates) {
     if (candidate !== undefined && existsSync(join(candidate, 'index.html'))) return candidate;

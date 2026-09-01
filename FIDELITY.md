@@ -58,6 +58,14 @@ Added: `id`, `user_id`, `name`, `store_id`, `external_id`, `external_store_id`, 
 
 Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
 
+### `ReportConfig`
+
+The spec names the delimiter `separator` and omits the scheduling flag. The account report endpoints read `column_separator` (which also accepts a tab) and report whether the schedule is enabled.
+
+Added: `column_separator`, `scheduled`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report_config/post
+
 ### `ReportTask`
 
 The task response carries the generated file name, which spec3.json omits; without it a client cannot build the download URL itself.
@@ -73,6 +81,14 @@ GET /v1/account/release_report/list reports the schedule that produces each file
 Added: `frequency`, `enabled`
 
 Source: https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report_list/get
+
+### `ReportTask`
+
+The task resource carries the name of the file it produces, which is the path segment the download endpoint takes; the spec exposes only the download URL.
+
+Added: `file_name`
+
+Source: https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report/post
 
 ## Behavioural divergences
 
@@ -189,4 +205,10 @@ Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos_id/put
 On the real API `qr.template_document` is a PDF. payground renders no PDFs, so it serves the same printable page as HTML at the URL it advertises, and `qr.image` and `qr.template_image` as real PNGs of the QR. Every URL a POS advertises is served by payground rather than pointing at mercadopago.com.
 
 Source: https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post
+
+### Settlement report — Fee and tax columns are always zero because payground charges no fees
+
+MP_FEE_AMOUNT, FINANCING_FEE_AMOUNT and TAXES_AMOUNT are emitted as 0.00 and SETTLEMENT_NET_AMOUNT equals TRANSACTION_AMOUNT. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a fee here would make the report disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds.
+
+Source: https://www.mercadopago.com.br/developers/en/docs/your-integrations/reports/settlement-report/columns
 

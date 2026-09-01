@@ -238,6 +238,16 @@ export const OVERLAY: readonly OverlayEntry[] = [
     },
   },
   {
+    schema: 'ReportConfig',
+    note: 'The spec names the delimiter `separator` and omits the scheduling flag. The account report endpoints read `column_separator` (which also accepts a tab) and report whether the schedule is enabled.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report_config/post',
+    properties: {
+      column_separator: { type: 'string', enum: [',', ';', '\t'] },
+      scheduled: { type: 'boolean' },
+    },
+  },
+  {
     schema: 'ReportTask',
     note: 'The task response carries the generated file name, which spec3.json omits; without it a client cannot build the download URL itself.',
     source: 'https://www.mercadopago.com.br/developers/en/reference/released_money/_v1_account_release_report/post',
@@ -255,6 +265,15 @@ export const OVERLAY: readonly OverlayEntry[] = [
         properties: { hour: { type: 'integer' }, type: { type: 'string', enum: ['daily', 'weekly', 'monthly'] } },
       },
       enabled: { type: 'boolean' },
+    },
+  },
+  {
+    schema: 'ReportTask',
+    note: 'The task resource carries the name of the file it produces, which is the path segment the download endpoint takes; the spec exposes only the download URL.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/reference/account_settlement_report/_v1_account_settlement_report/post',
+    properties: {
+      file_name: { type: ['string', 'null'] },
     },
   },
 ];
@@ -394,5 +413,13 @@ export const DIVERGENCES: readonly Divergence[] = [
     detail:
       'On the real API `qr.template_document` is a PDF. payground renders no PDFs, so it serves the same printable page as HTML at the URL it advertises, and `qr.image` and `qr.template_image` as real PNGs of the QR. Every URL a POS advertises is served by payground rather than pointing at mercadopago.com.',
     source: 'https://www.mercadopago.com.br/developers/en/reference/pos/_pos/post',
+  },
+  {
+    area: 'Settlement report',
+    summary: 'Fee and tax columns are always zero because payground charges no fees',
+    detail:
+      'MP_FEE_AMOUNT, FINANCING_FEE_AMOUNT and TAXES_AMOUNT are emitted as 0.00 and SETTLEMENT_NET_AMOUNT equals TRANSACTION_AMOUNT. payground has no pricing model: `fee_details` and `charges_details` are empty on every payment and `net_amount` is the gross amount, so inventing a fee here would make the report disagree with GET /v1/payments/{id}. Every other column carries the sandbox’s real payments and refunds.',
+    source:
+      'https://www.mercadopago.com.br/developers/en/docs/your-integrations/reports/settlement-report/columns',
   },
 ];

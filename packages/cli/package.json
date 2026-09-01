@@ -1,19 +1,27 @@
 {
   "name": "payground",
   "version": "0.1.0",
-  "description": "A stateful, self-hosted sandbox that speaks the Mercado Pago API",
+  "description": "A stateful, self-hosted sandbox that speaks the Mercado Pago API. Requires Bun; the bin is a Bun bundle and does not run under Node.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jlucaso1/payground.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/jlucaso1/payground#readme",
+  "bugs": {
+    "url": "https://github.com/jlucaso1/payground/issues"
+  },
   "bin": {
     "payground": "./dist/payground.js"
   },
   "files": [
-    "dist",
-    "preload.ts",
-    "README.md",
-    "FIDELITY.md",
-    "LICENSE"
+    "dist"
   ],
+  "scripts": {
+    "prepack": "cd ../.. && bun run build"
+  },
   "publishConfig": {
     "access": "public"
   },

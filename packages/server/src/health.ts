@@ -1,6 +1,9 @@
 import type { Clock } from '@payground/core';
+// The CLI manifest is the single source of truth for the released version. The import
+// is inlined by the bundler, so the server keeps no runtime dependency on the file.
+import pkg from '../../cli/package.json' with { type: 'json' };
 
-export const VERSION = '0.1.0';
+export const VERSION: string = pkg.version;
 
 export interface Health {
   status: 'ok';

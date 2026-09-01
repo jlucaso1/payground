@@ -235,7 +235,7 @@ describe('failure paths', () => {
 
 describe('admin token', () => {
   const spy = () => {
-    const calls: { url: string; init?: RequestInit }[] = [];
+    const calls: { url: string; init: RequestInit | undefined }[] = [];
     const fetchLike = async (url: string, init?: RequestInit) => {
       calls.push({ url, init });
       return new Response(JSON.stringify([]), { status: 200 });

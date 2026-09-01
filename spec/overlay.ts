@@ -167,9 +167,92 @@ export const OVERLAY: readonly OverlayEntry[] = [
       },
     },
   },
+  {
+    schema: 'Claim',
+    note: 'The spec omits the payment the claim was opened against, the parent claim, the site, the status history the /status_history endpoint returns, and the resolution recorded when a dispute ends.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/get-claim/get',
+    properties: {
+      resource_id: { type: ['integer', 'null'] },
+      parent_id: { type: ['integer', 'null'] },
+      site_id: { type: 'string' },
+      status_history: { type: 'array', items: { $ref: '#/components/schemas/ClaimHistoryEntry' } },
+      resolution: {
+        type: ['object', 'null'],
+        properties: {
+          type: { type: 'string', enum: ['refund', 'return', 'partial_refund', 'seller_favour'] },
+          reason: { type: ['string', 'null'] },
+          date_created: { type: 'string', format: 'date-time' },
+          benefited: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+  {
+    schema: 'ClaimMessage',
+    note: 'The message list carries the claim it belongs to, the flat sender_role/receiver_role pair the notification payload uses, and the stage the message was written in; the spec only models the nested `from` object.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/get-claim-messages/get',
+    properties: {
+      claim_id: { type: 'integer' },
+      sender_role: { type: 'string', enum: ['complainant', 'respondent', 'mediator'] },
+      receiver_role: { type: 'string', enum: ['complainant', 'respondent', 'mediator'] },
+      stage: { type: 'string', enum: ['claim', 'dispute', 'resolution'] },
+    },
+  },
+  {
+    schema: 'ClaimEvidence',
+    note: 'The attachment responses key a file by `file_id`, which ClaimEvidence lacks, and shipping evidence can be a plain `value` (a tracking code) rather than a file, so the file fields are nullable. The request enum also admits proof_of_delivery, which the resource enum omits.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/upload-evidence/post',
+    properties: {
+      claim_id: { type: 'integer' },
+      file_id: { type: 'string' },
+      file_name: { type: ['string', 'null'] },
+      content_type: { type: ['string', 'null'] },
+      size: { type: ['integer', 'null'] },
+      value: { type: ['string', 'null'] },
+      description: { type: ['string', 'null'] },
+      type: {
+        type: 'string',
+        enum: ['tracking_code', 'proof_of_delivery', 'photo', 'invoice', 'other'],
+      },
+    },
+  },
+  {
+    schema: 'ClaimReason',
+    note: 'A reason carries the group it belongs to and the flow that produced it; the spec keeps only id, description and type.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/get-claim-reason/get',
+    properties: {
+      detail: { type: 'string' },
+      group: { type: 'string' },
+      flow: { type: 'string' },
+    },
+  },
+  {
+    schema: 'MediationResolution',
+    note: 'Each expected resolution is addressable and scoped to a currency; the spec omits both, so two options of the same type are indistinguishable.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/get-expected-resolutions/get',
+    properties: {
+      id: { type: 'string' },
+      currency_id: { type: ['string', 'null'] },
+      benefited: { type: 'string', enum: ['complainant', 'respondent'] },
+    },
+  },
 ];
 
 export const DIVERGENCES: readonly Divergence[] = [
+  {
+    area: 'Claims',
+    summary: 'Claims are opened and resolved from the control API, not the emulated one',
+    detail:
+      'The real API has no public endpoint that opens a claim or applies a mediation resolution — a buyer opens a claim from the Mercado Pago front end and Mercado Pago mediates it. payground exposes both under the control namespace (POST /_payground/sandboxes/{id}/claims and .../claims/{claim_id}/resolve) so a test or the dashboard can drive a sandbox through the post-purchase flow. Resolving for the complainant refunds the payment through the same domain command the Payments API uses, so the money is real.',
+    source: 'https://www.mercadopago.com.br/developers/en/docs/post-purchase/claims/introduction',
+  },
+  {
+    area: 'Claims',
+    summary: 'Shipping evidence also accepts a file, and a message can declare its sender',
+    detail:
+      'POST /post-purchase/v1/claims/{claim_id}/actions/evidences takes the specified JSON body `{ type, value }`, and additionally accepts multipart/form-data with a `file` part so an evidence photo or invoice can be exercised end to end. POST .../actions/send-message infers the sender from the token, which is always the seller; payground accepts a non-spec `sender_role` so a test can write the buyer or mediator side of a thread it has no session for.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/claims/upload-evidence/post',
+  },
   {
     area: 'Payments',
     summary: 'Payment `id` is a number on the resource and a string in search results',

@@ -469,6 +469,67 @@ export function checkClaim(value: unknown, path: string, out: Issue[]): void {
         }
       }
     }
+    const v17: unknown = value["resource_id"];
+    if (v17 !== undefined) {
+      if (v17 !== null) {
+        if (typeof v17 !== 'number' || !Number.isInteger(v17)) out.push({ path: path + ".resource_id", message: 'expected integer' });
+      }
+    }
+    const v18: unknown = value["parent_id"];
+    if (v18 !== undefined) {
+      if (v18 !== null) {
+        if (typeof v18 !== 'number' || !Number.isInteger(v18)) out.push({ path: path + ".parent_id", message: 'expected integer' });
+      }
+    }
+    const v19: unknown = value["site_id"];
+    if (v19 !== undefined) {
+      if (typeof v19 !== 'string') out.push({ path: path + ".site_id", message: 'expected string' });
+    }
+    const v20: unknown = value["status_history"];
+    if (v20 !== undefined) {
+      if (!Array.isArray(v20)) {
+        out.push({ path: path + ".status_history", message: 'expected array' });
+      } else {
+        for (let v21 = 0; v21 < v20.length; v21++) {
+          const v22: unknown = v20[v21];
+          checkClaimHistoryEntry(v22, path + ".status_history" + '[' + v21 + ']', out);
+        }
+      }
+    }
+    const v23: unknown = value["resolution"];
+    if (v23 !== undefined) {
+      if (v23 !== null) {
+        if (!isObject(v23)) {
+          out.push({ path: path + ".resolution", message: 'expected object' });
+        } else {
+          const v24: unknown = v23["type"];
+          if (v24 !== undefined) {
+            if (v24 !== "refund" && v24 !== "return" && v24 !== "partial_refund" && v24 !== "seller_favour") out.push({ path: path + ".resolution" + ".type", message: 'not one of the allowed values' });
+          }
+          const v25: unknown = v23["reason"];
+          if (v25 !== undefined) {
+            if (v25 !== null) {
+              if (typeof v25 !== 'string') out.push({ path: path + ".resolution" + ".reason", message: 'expected string' });
+            }
+          }
+          const v26: unknown = v23["date_created"];
+          if (v26 !== undefined) {
+            if (typeof v26 !== 'string') out.push({ path: path + ".resolution" + ".date_created", message: 'expected string' });
+          }
+          const v27: unknown = v23["benefited"];
+          if (v27 !== undefined) {
+            if (!Array.isArray(v27)) {
+              out.push({ path: path + ".resolution" + ".benefited", message: 'expected array' });
+            } else {
+              for (let v28 = 0; v28 < v27.length; v28++) {
+                const v29: unknown = v27[v28];
+                if (typeof v29 !== 'string') out.push({ path: path + ".resolution" + ".benefited" + '[' + v28 + ']', message: 'expected string' });
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -531,6 +592,22 @@ export function checkClaimMessage(value: unknown, path: string, out: Issue[]): v
         }
       }
     }
+    const v12: unknown = value["claim_id"];
+    if (v12 !== undefined) {
+      if (typeof v12 !== 'number' || !Number.isInteger(v12)) out.push({ path: path + ".claim_id", message: 'expected integer' });
+    }
+    const v13: unknown = value["sender_role"];
+    if (v13 !== undefined) {
+      if (v13 !== "complainant" && v13 !== "respondent" && v13 !== "mediator") out.push({ path: path + ".sender_role", message: 'not one of the allowed values' });
+    }
+    const v14: unknown = value["receiver_role"];
+    if (v14 !== undefined) {
+      if (v14 !== "complainant" && v14 !== "respondent" && v14 !== "mediator") out.push({ path: path + ".receiver_role", message: 'not one of the allowed values' });
+    }
+    const v15: unknown = value["stage"];
+    if (v15 !== undefined) {
+      if (v15 !== "claim" && v15 !== "dispute" && v15 !== "resolution") out.push({ path: path + ".stage", message: 'not one of the allowed values' });
+    }
   }
 }
 
@@ -555,6 +632,18 @@ export function checkClaimReason(value: unknown, path: string, out: Issue[]): vo
     const v3: unknown = value["type"];
     if (v3 !== undefined) {
       if (v3 !== "mediations" && v3 !== "claims") out.push({ path: path + ".type", message: 'not one of the allowed values' });
+    }
+    const v4: unknown = value["detail"];
+    if (v4 !== undefined) {
+      if (typeof v4 !== 'string') out.push({ path: path + ".detail", message: 'expected string' });
+    }
+    const v5: unknown = value["group"];
+    if (v5 !== undefined) {
+      if (typeof v5 !== 'string') out.push({ path: path + ".group", message: 'expected string' });
+    }
+    const v6: unknown = value["flow"];
+    if (v6 !== undefined) {
+      if (typeof v6 !== 'string') out.push({ path: path + ".flow", message: 'expected string' });
     }
   }
 }
@@ -632,7 +721,7 @@ export function checkClaimEvidence(value: unknown, path: string, out: Issue[]): 
     }
     const v2: unknown = value["type"];
     if (v2 !== undefined) {
-      if (v2 !== "tracking_code" && v2 !== "photo" && v2 !== "invoice" && v2 !== "other") out.push({ path: path + ".type", message: 'not one of the allowed values' });
+      if (v2 !== "tracking_code" && v2 !== "proof_of_delivery" && v2 !== "photo" && v2 !== "invoice" && v2 !== "other") out.push({ path: path + ".type", message: 'not one of the allowed values' });
     }
     const v3: unknown = value["date_created"];
     if (v3 !== undefined) {
@@ -640,7 +729,41 @@ export function checkClaimEvidence(value: unknown, path: string, out: Issue[]): 
     }
     const v4: unknown = value["file_name"];
     if (v4 !== undefined) {
-      if (typeof v4 !== 'string') out.push({ path: path + ".file_name", message: 'expected string' });
+      if (v4 !== null) {
+        if (typeof v4 !== 'string') out.push({ path: path + ".file_name", message: 'expected string' });
+      }
+    }
+    const v5: unknown = value["claim_id"];
+    if (v5 !== undefined) {
+      if (typeof v5 !== 'number' || !Number.isInteger(v5)) out.push({ path: path + ".claim_id", message: 'expected integer' });
+    }
+    const v6: unknown = value["file_id"];
+    if (v6 !== undefined) {
+      if (typeof v6 !== 'string') out.push({ path: path + ".file_id", message: 'expected string' });
+    }
+    const v7: unknown = value["content_type"];
+    if (v7 !== undefined) {
+      if (v7 !== null) {
+        if (typeof v7 !== 'string') out.push({ path: path + ".content_type", message: 'expected string' });
+      }
+    }
+    const v8: unknown = value["size"];
+    if (v8 !== undefined) {
+      if (v8 !== null) {
+        if (typeof v8 !== 'number' || !Number.isInteger(v8)) out.push({ path: path + ".size", message: 'expected integer' });
+      }
+    }
+    const v9: unknown = value["value"];
+    if (v9 !== undefined) {
+      if (v9 !== null) {
+        if (typeof v9 !== 'string') out.push({ path: path + ".value", message: 'expected string' });
+      }
+    }
+    const v10: unknown = value["description"];
+    if (v10 !== undefined) {
+      if (v10 !== null) {
+        if (typeof v10 !== 'string') out.push({ path: path + ".description", message: 'expected string' });
+      }
     }
   }
 }
@@ -666,6 +789,20 @@ export function checkMediationResolution(value: unknown, path: string, out: Issu
     const v3: unknown = value["reason"];
     if (v3 !== undefined) {
       if (typeof v3 !== 'string') out.push({ path: path + ".reason", message: 'expected string' });
+    }
+    const v4: unknown = value["id"];
+    if (v4 !== undefined) {
+      if (typeof v4 !== 'string') out.push({ path: path + ".id", message: 'expected string' });
+    }
+    const v5: unknown = value["currency_id"];
+    if (v5 !== undefined) {
+      if (v5 !== null) {
+        if (typeof v5 !== 'string') out.push({ path: path + ".currency_id", message: 'expected string' });
+      }
+    }
+    const v6: unknown = value["benefited"];
+    if (v6 !== undefined) {
+      if (v6 !== "complainant" && v6 !== "respondent") out.push({ path: path + ".benefited", message: 'not one of the allowed values' });
     }
   }
 }

@@ -105,6 +105,16 @@ export interface Claim {
     user_id?: number;
     available_actions?: string[];
   })[];
+  resource_id?: number | null;
+  parent_id?: number | null;
+  site_id?: string;
+  status_history?: ClaimHistoryEntry[];
+  resolution?: {
+    type?: "refund" | "return" | "partial_refund" | "seller_favour";
+    reason?: string | null;
+    date_created?: string;
+    benefited?: string[];
+  } | null;
 }
 
 /** A message within a claim thread */
@@ -120,6 +130,10 @@ export interface ClaimMessage {
     file_name?: string;
     file_id?: string;
   })[];
+  claim_id?: number;
+  sender_role?: "complainant" | "respondent" | "mediator";
+  receiver_role?: "complainant" | "respondent" | "mediator";
+  stage?: "claim" | "dispute" | "resolution";
 }
 
 /** A reason code for opening a claim */
@@ -127,6 +141,9 @@ export interface ClaimReason {
   id?: string;
   description?: string;
   type?: "mediations" | "claims";
+  detail?: string;
+  group?: string;
+  flow?: string;
 }
 
 export interface ClaimSearchResult {
@@ -143,9 +160,15 @@ export interface ClaimHistoryEntry {
 
 export interface ClaimEvidence {
   id?: string;
-  type?: "tracking_code" | "photo" | "invoice" | "other";
+  type?: "tracking_code" | "proof_of_delivery" | "photo" | "invoice" | "other";
   date_created?: string;
-  file_name?: string;
+  file_name?: string | null;
+  claim_id?: number;
+  file_id?: string;
+  content_type?: string | null;
+  size?: number | null;
+  value?: string | null;
+  description?: string | null;
 }
 
 /** Expected resolution options at mediation stage */
@@ -153,6 +176,9 @@ export interface MediationResolution {
   type?: "refund" | "return" | "partial_refund";
   amount?: number;
   reason?: string;
+  id?: string;
+  currency_id?: string | null;
+  benefited?: "complainant" | "respondent";
 }
 
 export interface SendMessageRequest {

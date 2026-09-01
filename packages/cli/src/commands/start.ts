@@ -2,7 +2,13 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { RateLimiter } from '@payground/core';
-import { VERSION, createServer, createTokenBucketLimiter, type ServerOptions } from '@payground/server';
+import {
+  DEFAULT_DRAIN_TIMEOUT_MS,
+  VERSION,
+  createServer,
+  createTokenBucketLimiter,
+  type ServerOptions,
+} from '@payground/server';
 import { type Retention, startRetention } from '@payground/server/maintenance.ts';
 import { FAILURE, OK, USAGE_ERROR, flag, integer, parseOptions, text, type Values } from '../args.ts';
 import { DEFAULT_DB, type Env, MEMORY } from '../env.ts';
@@ -26,6 +32,8 @@ export const START_USAGE = `Usage: payground start [options]
   --retention-days <n>
                    Prune requests, audit, webhooks and payments older than n days,
                    on boot and hourly after that (env PAYGROUND_RETENTION_DAYS)
+  --drain-timeout <ms>
+                   How long a shutdown waits for in-flight requests (default ${DEFAULT_DRAIN_TIMEOUT_MS})
   --block-private-webhooks
                    Refuse webhook targets on private addresses (public deployments)
   -h, --help       Show this help`;
@@ -108,6 +116,7 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
     'no-admin-token': { type: 'boolean' },
     'no-bootstrap': { type: 'boolean' },
     'retention-days': { type: 'string' },
+    'drain-timeout': { type: 'string' },
     'block-private-webhooks': { type: 'boolean' },
     'rate-limit': { type: 'string' },
     'rate-burst': { type: 'string' },
@@ -139,6 +148,17 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
       return USAGE_ERROR;
     }
     retentionDays = days.value;
+  }
+
+  const drainTimeout = integer(
+    text(parsed.values, 'drain-timeout') ?? String(DEFAULT_DRAIN_TIMEOUT_MS),
+    'drain-timeout',
+    0,
+    600_000,
+  );
+  if (!drainTimeout.ok) {
+    env.io.err(drainTimeout.message);
+    return USAGE_ERROR;
   }
   const host = text(parsed.values, 'host') ?? env.variables['PAYGROUND_HOST'] ?? '127.0.0.1';
   const db = text(parsed.values, 'db') ?? env.variables['PAYGROUND_DB'] ?? DEFAULT_DB;
@@ -259,9 +279,9 @@ export async function runStart(argv: readonly string[], env: Env): Promise<numbe
 
   retention?.stop();
   retentionDb?.close();
-  await server.stop(true);
+  const outcome = await server.drain(drainTimeout.value);
   storage.close();
-  env.io.out('payground stopped');
+  env.io.out(outcome === 'drained' ? 'payground stopped' : 'payground stopped (in-flight requests cut short)');
   return OK;
 }
 

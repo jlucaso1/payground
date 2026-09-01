@@ -136,3 +136,76 @@ export interface PaymentQuery {
   limit?: number;
   offset?: number;
 }
+
+export interface RouteMetric {
+  route: string;
+  method: string;
+  count: number;
+  errors: number;
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+export interface MetricsView {
+  totals: { requests: number; errors: number };
+  routes: RouteMetric[];
+}
+
+export interface ApiRequestEntry {
+  id: string;
+  at: number;
+  sandbox: string | null;
+  method: string;
+  route: string;
+  path: string;
+  status: number;
+  durationMs: number;
+  requestBody: string | null;
+  responseBody: string | null;
+  idempotencyKey: string | null;
+  userAgent: string | null;
+}
+
+export type AuditActor =
+  | { kind: 'admin' }
+  | { kind: 'sandbox'; sandbox: string }
+  | { kind: 'system' };
+
+export interface AuditEntry {
+  id: string;
+  at: number;
+  actor: AuditActor;
+  action: string;
+  target: string;
+  sandbox: string | null;
+  detail: Record<string, unknown>;
+}
+
+export interface Page<T> {
+  total: number;
+  limit: number;
+  offset: number;
+  results: T[];
+}
+
+export interface RequestLogQuery {
+  sandbox?: string;
+  route?: string;
+  method?: string;
+  status?: number;
+  min_status?: number;
+  from?: number;
+  to?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AuditLogQuery {
+  sandbox?: string;
+  action?: string;
+  from?: number;
+  to?: number;
+  limit?: number;
+  offset?: number;
+}

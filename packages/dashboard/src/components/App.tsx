@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api } from '../api/instance.ts';
+import { writeToken } from '../api/token.ts';
 import { useAsync } from '../hooks/useAsync.ts';
 import { useRoute } from '../hooks/useRoute.ts';
+import { useSession } from '../hooks/useSession.ts';
 import { formatDuration } from '../lib/format.ts';
 import { routeSandboxId, routeToHash, type Route } from '../lib/router.ts';
 import { AdminScreen } from './AdminScreen.tsx';
@@ -13,8 +15,26 @@ import { PaymentsScreen } from './PaymentsScreen.tsx';
 import { SandboxesScreen } from './SandboxesScreen.tsx';
 import { ResourcesScreen } from './ResourcesScreen.tsx';
 import { WebhooksScreen } from './WebhooksScreen.tsx';
+import { Button, inputClass } from './ui.tsx';
 
-function Header(): ReactNode {
+/** Keeps the current section while pointing it at another sandbox. */
+export function switchSandbox(route: Route, sandboxId: string): Route {
+  switch (route.name) {
+    case 'payments':
+    case 'payment':
+      return { name: 'payments', sandboxId };
+    case 'webhooks':
+      return { name: 'webhooks', sandboxId };
+    case 'faults':
+      return { name: 'faults', sandboxId };
+    case 'resources':
+      return { name: 'resources', sandboxId };
+    default:
+      return { name: 'payments', sandboxId };
+  }
+}
+
+function Health(): ReactNode {
   const { state } = useAsync(() => api.getHealth(), []);
   return (
     <div className="text-xs text-neutral-500">
@@ -24,6 +44,44 @@ function Header(): ReactNode {
           ? 'server unreachable'
           : '…'}
     </div>
+  );
+}
+
+function SandboxPicker({
+  route,
+  navigate,
+  nonce,
+}: {
+  route: Route;
+  navigate: (next: Route) => void;
+  nonce: number;
+}): ReactNode {
+  const { state } = useAsync(() => api.listSandboxes(), [nonce]);
+  const current = routeSandboxId(route) ?? '';
+
+  if (state.status !== 'ready' || state.value.length === 0) {
+    return current === '' ? null : <span className="font-mono text-xs text-neutral-500">{current}</span>;
+  }
+
+  const known = state.value.some((sandbox) => sandbox.id === current);
+
+  return (
+    <select
+      aria-label="Sandbox"
+      className={inputClass}
+      value={current}
+      onChange={(event) => {
+        const id = event.target.value;
+        if (id !== '') navigate(switchSandbox(route, id));
+      }}
+    >
+      {known ? null : <option value={current}>{current === '' ? 'Select sandbox' : current}</option>}
+      {state.value.map((sandbox) => (
+        <option key={sandbox.id} value={sandbox.id}>
+          {sandbox.name}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -38,6 +96,44 @@ function NavLink({ route, current, label }: { route: Route; current: Route; labe
     >
       {label}
     </a>
+  );
+}
+
+function TokenPrompt({ rejected }: { rejected: boolean }): ReactNode {
+  const [value, setValue] = useState('');
+  return (
+    <form
+      className="mx-auto max-w-md rounded border border-neutral-200 p-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (value.trim() !== '') writeToken(value.trim());
+      }}
+    >
+      <h2 className="mb-2 text-base font-semibold text-neutral-900">Admin token required</h2>
+      <p className="mb-4 text-sm text-neutral-600">
+        {rejected ? 'That token was rejected. ' : ''}
+        The control API is protected. Paste the token printed by <code>payground start</code>, or the
+        one set with <code>--admin-token</code> / <code>PAYGROUND_ADMIN_TOKEN</code>.
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          autoFocus
+          className={`${inputClass} flex-1`}
+          placeholder="Admin token"
+          aria-label="Admin token"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={value.trim() === ''}
+          className="rounded bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+        >
+          Continue
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -68,6 +164,7 @@ function Screen({ route, navigate }: { route: Route; navigate: (next: Route) => 
 
 export function App(): ReactNode {
   const { route, navigate } = useRoute();
+  const session = useSession();
   const sandboxId = routeSandboxId(route);
 
   return (
@@ -100,15 +197,22 @@ export function App(): ReactNode {
             )}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            {sandboxId === null ? null : (
-              <span className="font-mono text-xs text-neutral-500">{sandboxId}</span>
+            {session.unauthorized ? null : (
+              <SandboxPicker route={route} navigate={navigate} nonce={session.nonce} />
             )}
-            <Header />
+            {session.token === null ? null : (
+              <Button onClick={() => writeToken(null)}>Sign out</Button>
+            )}
+            <Health />
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-6">
-        <Screen route={route} navigate={navigate} />
+        {session.unauthorized ? (
+          <TokenPrompt rejected={session.token !== null} />
+        ) : (
+          <Screen key={session.nonce} route={route} navigate={navigate} />
+        )}
       </main>
     </div>
   );

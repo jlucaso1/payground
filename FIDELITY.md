@@ -66,6 +66,12 @@ The real API exposes POST /merchant_orders and PUT /merchant_orders/{id}. paygro
 
 Source: https://www.mercadopago.com.br/developers/en/reference/merchant_orders/_merchant_orders/post
 
+### Payouts — The outcome of a transfer is decided by the shape of its receiver
+
+The spec describes neither the payout transaction statuses nor how a transfer settles. payground derives the batch status from its transactions (pending / processed / partially_processed / cancelled / failed) and never stores it, settles a valid Pix key instantly, settles a valid bank account one day later as a TED does, and fails a receiver no bank would accept with invalid_pix_key or invalid_bank_account instead of rejecting the request. Payout notices ride the payment topic, because the notification topics have no payout entry.
+
+Source: https://www.mercadopago.com.br/developers/en/reference/payouts/_payouts/post
+
 ### Node SDK — Per-call requestOptions leak into the shared client configuration
 
 Payment.create and friends assign `this.config.options = {...this.config.options, ...requestOptions}`, so a per-call X-Idempotency-Key is pinned onto the client and reused by every later request. Against the real API this silently replays a stale response; against payground it surfaces as a 409. Use a fresh client per idempotency key, or omit requestOptions.

@@ -12,6 +12,8 @@ export interface PendingOperation {
 export interface ModuleDeps {
   runtime: AppRuntime;
   storage: Storage;
+  /** Wraps a control-API handler so it requires the admin token. */
+  admin: (handler: (request: Request) => Response | Promise<Response>) => (request: Request) => Response | Promise<Response>;
   /** Bun exposes matched path parameters on the request object. */
   param: (request: Request, name: string) => string;
   json: (request: Request) => Promise<unknown>;

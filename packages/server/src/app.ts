@@ -170,7 +170,7 @@ export function createApp(options: AppOptions = {}): App {
     },
   };
 
-  const moduleDeps: ModuleDeps = { runtime, storage, param, json };
+  const moduleDeps: ModuleDeps = { runtime, storage, admin, param, json };
   for (const module of MODULES) Object.assign(routes, module.routes(moduleDeps));
 
   const interval = options.deliveryIntervalMs ?? 1_000;

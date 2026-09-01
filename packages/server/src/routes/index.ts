@@ -14,6 +14,10 @@ import { payouts } from './payouts.ts';
 import { claims } from './claims.ts';
 import { reportsRelease } from './reports-release.ts';
 import { reportsSettlement } from './reports-settlement.ts';
+import { controlMetrics } from './control-metrics.ts';
+import { controlHistory } from './control-history.ts';
+import { controlAdmin } from './control-admin.ts';
+import { controlParity } from './control-parity.ts';
 import type { RouteModule } from './module.ts';
 
 /** Every Mercado Pago product payground knows about. One module per product. */
@@ -34,6 +38,10 @@ export const MODULES: readonly RouteModule[] = [
   claims,
   reportsRelease,
   reportsSettlement,
+  controlMetrics,
+  controlHistory,
+  controlAdmin,
+  controlParity,
 ];
 
 export { type ModuleDeps, type PendingOperation, type RouteModule, type RouteTable, notImplemented } from './module.ts';

@@ -221,4 +221,18 @@ export const DIVERGENCES: readonly Divergence[] = [
       'fixtures3.yaml `payment_pix` uses `status_detail: waiting_transfer`, while the Payments API documents `pending_waiting_transfer`. payground follows the documentation.',
     source: 'https://github.com/mercadopago/openapi — fixtures3.yaml',
   },
+  {
+    area: 'Users',
+    summary: 'GET /users/me is served although it is absent from the specification',
+    detail:
+      'spec3.json documents no user resource, but the official Node SDK ships a `user` client that calls GET /users/me, and integrations read the collector id from it. payground answers it with the profile of the authenticated sandbox — the same collector id the payments resource reports, site_id MLB and country_id BR.',
+    source: 'https://github.com/mercadopago/sdk-nodejs — clients/user/get/types.ts',
+  },
+  {
+    area: 'OAuth',
+    summary: 'The token endpoint issues the sandbox credentials instead of a fresh grant',
+    detail:
+      'POST /oauth/token accepts any authorization code, resolves the sandbox from `client_secret` (the application access token on the real API) and returns that sandbox\'s own access token and public key, because those are the only credentials the emulator authenticates. The refresh token is derived from the sandbox rather than stored, so it is stable across restarts, and `client_id` is only checked for presence since payground has no application registry.',
+    source: 'https://www.mercadopago.com.br/developers/en/reference/oauth/_oauth_token/post',
+  },
 ];

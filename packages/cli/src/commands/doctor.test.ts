@@ -56,10 +56,10 @@ describe('doctor', () => {
     expect(text).toContain('https://api.mercadopago.com');
   });
 
-  test('flags an operation the registry only stubs', async () => {
+  test('names the operation behind every recorded route', async () => {
     const { env, storage, out } = testEnv();
     storage.requests.record(call({ route: '/merchant_orders', path: '/merchant_orders', requestBody: null }));
-    expect(await main(['doctor', '--db', ':memory:'], env)).toBe(1);
+    expect(await main(['doctor', '--db', ':memory:'], env)).toBe(0);
     expect(out.join('\n')).toContain('createMerchantOrder');
   });
 

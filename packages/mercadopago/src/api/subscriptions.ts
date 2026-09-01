@@ -770,6 +770,88 @@ function action(current: SubscriptionStatus, requested: SubscriptionStatus): str
   return 'updated';
 }
 
+/**
+ * The export endpoint is the search endpoint rendered as a spreadsheet-friendly CSV, so it
+ * reuses the same filtering rather than growing a second query path.
+ * https://www.mercadopago.com.br/developers/en/reference/subscriptions/_preapproval_export/get
+ */
+const EXPORT_COLUMNS = [
+  'id',
+  'status',
+  'reason',
+  'external_reference',
+  'payer_email',
+  'preapproval_plan_id',
+  'transaction_amount',
+  'currency_id',
+  'frequency',
+  'frequency_type',
+  'date_created',
+  'last_modified',
+  'next_payment_date',
+] as const;
+
+const csvCell = (value: unknown): string => {
+  const text = value === null || value === undefined ? '' : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+export function exportSubscriptions(
+  context: ServiceContext,
+  params: URLSearchParams,
+): Result<{ status: number; fileName: string; body: string }, ErrorBody> {
+  const collector = params.get('collector_id');
+  if (collector === null || collector === '') {
+    return err(badRequest('invalid parameters', [{ code: 2034, description: 'collector_id is required' }]));
+  }
+  if (collector !== String(context.collectorId)) {
+    return err(notFound('collector not found'));
+  }
+
+  // The export covers everything the filters match, not one page of it.
+  const scoped = new URLSearchParams(params);
+  scoped.delete('collector_id');
+  scoped.set('limit', '1000');
+  scoped.set('offset', '0');
+
+  const found = searchSubscriptions(context, scoped);
+  if (!found.ok) return found;
+
+  const body = found.value.body as { results?: JsonObject[] };
+  const rows = body.results ?? [];
+  const lines = [EXPORT_COLUMNS.join(',')];
+
+  for (const row of rows) {
+    const recurring = isJsonObject(row['auto_recurring']) ? row['auto_recurring'] : {};
+    const payer = isJsonObject(row['payer']) ? row['payer'] : {};
+    lines.push(
+      [
+        row['id'],
+        row['status'],
+        row['reason'],
+        row['external_reference'],
+        row['payer_email'] ?? payer['email'],
+        row['preapproval_plan_id'],
+        recurring['transaction_amount'],
+        recurring['currency_id'],
+        recurring['frequency'],
+        recurring['frequency_type'],
+        row['date_created'],
+        row['last_modified'],
+        row['next_payment_date'],
+      ]
+        .map(csvCell)
+        .join(','),
+    );
+  }
+
+  return ok({
+    status: 200,
+    fileName: `preapproval-${collector}.csv`,
+    body: `${lines.join('\n')}\n`,
+  });
+}
+
 export function searchSubscriptions(context: ServiceContext, params: URLSearchParams): Result<Rendered, ErrorBody> {
   const page = paging(params);
   const query = params.get('q');

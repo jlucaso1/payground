@@ -1,6 +1,7 @@
 import type { ApiRequestEntry, ApiRequestLog } from '@payground/core';
 import { DIVERGENCES } from '../../../../spec/overlay.ts';
 import { MODULES } from '../routes/index.ts';
+import type { RouteModule } from '../routes/module.ts';
 import { operationFor, responseSchema } from './spec.ts';
 import { type Finding, collapseIndices, validateNamed, validateSchema } from './validate.ts';
 
@@ -59,6 +60,8 @@ export interface ReportInput {
   sandbox?: string | null;
   /** Response divergences observed live by strict mode, merged with the stored ones. */
   drift?: readonly ResponseDrift[];
+  /** Overrides the route registry. Only tests need this. */
+  modules?: readonly RouteModule[];
 }
 
 interface Registered {
@@ -70,16 +73,16 @@ interface Registered {
 let registry: Map<string, Registered> | null = null;
 
 /** Built lazily: the route registry imports this module through the parity control route. */
-function registered(): Map<string, Registered> {
-  if (registry !== null) return registry;
+function registered(modules?: readonly RouteModule[]): Map<string, Registered> {
+  if (modules === undefined && registry !== null) return registry;
   const index = new Map<string, Registered>();
-  for (const module of MODULES) {
+  for (const module of modules ?? MODULES) {
     for (const operationId of module.operations) index.set(operationId, { module: module.name, state: 'emulated' });
     for (const item of module.pending) {
       index.set(item.operationId, { module: module.name, state: 'pending', reason: item.reason });
     }
   }
-  registry = index;
+  if (modules === undefined) registry = index;
   return index;
 }
 
@@ -142,7 +145,7 @@ const RELEVANT: Record<string, (usage: Usage) => boolean> = {
 };
 
 export function buildReport(input: ReportInput): ParityReport {
-  const index = registered();
+  const index = registered(input.modules);
   const usage: Usage = {
     operations: new Set(),
     routes: new Set(),

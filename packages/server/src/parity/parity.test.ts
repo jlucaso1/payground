@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import type { ApiRequestEntry, SandboxId } from '@payground/core';
 import { ROUTES } from '@payground/mercadopago/generated/routes.ts';
 import { TEST_ACCESS_TOKEN, type TestServer, startTestServer } from '../testing.ts';
+import type { RouteModule } from '../routes/module.ts';
 import { buildReport, readHistory } from './report.ts';
 import { operationFor, responseSchema, routeKey } from './spec.ts';
 import { validateNamed } from './validate.ts';
@@ -121,15 +122,32 @@ describe('report', () => {
   });
 
   test('an operation the registry lists as pending is blocking', () => {
+    // Injected rather than borrowed from the real registry, which aims to have nothing pending.
+    const stub: RouteModule = {
+      name: 'checkout',
+      operations: [],
+      pending: [{ operationId: 'createMerchantOrder', reason: 'merchant orders are derived from preferences' }],
+      routes: () => ({}),
+    };
+
     const report = buildReport({
       entries: [entry({ method: 'POST', route: '/merchant_orders', path: '/merchant_orders', status: 201 })],
       now: 1,
+      modules: [stub],
     });
     expect(report.operations).toMatchObject([
       { operationId: 'createMerchantOrder', module: 'checkout', state: 'pending', calls: 1 },
     ]);
     expect(report.verdict.blocking).toBe(true);
     expect(report.verdict.findings[0]).toContain('merchant orders are derived from preferences');
+  });
+
+  test('with nothing pending the registry reports every used operation as emulated', () => {
+    const report = buildReport({
+      entries: [entry({ method: 'POST', route: '/merchant_orders', path: '/merchant_orders', status: 201 })],
+      now: 1,
+    });
+    expect(report.operations).toMatchObject([{ operationId: 'createMerchantOrder', state: 'emulated' }]);
   });
 
   test('a route outside the specification is reported without blocking', () => {

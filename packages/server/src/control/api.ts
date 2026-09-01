@@ -1,6 +1,7 @@
 import {
   type AuditActor,
   type AuditLog,
+  type DocumentKind,
   type FaultProfile,
   type Payment,
   type PaymentCommand,
@@ -306,6 +307,68 @@ export function actOnPayment(
   });
 
   return { status: 200, body: { payment: paymentView(result.value.payment, found.store) } };
+}
+
+const DOCUMENT_KINDS: readonly DocumentKind[] = [
+  'card_token', 'preference', 'merchant_order', 'customer', 'customer_card', 'customer_address',
+  'preapproval_plan', 'preapproval', 'authorized_payment', 'order', 'advanced_payment', 'chargeback',
+  'store', 'pos', 'terminal', 'point_intent', 'qr_order', 'qr_config', 'wallet_agreement', 'payout',
+  'transaction_intent', 'claim', 'claim_message', 'report', 'report_config', 'report_task',
+];
+
+const isKind = (value: string): value is DocumentKind =>
+  (DOCUMENT_KINDS as readonly string[]).includes(value);
+
+export function listDocumentKinds(deps: ControlDeps, id: string): ControlResult {
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+
+  const counted = found.store.documents.countByKind();
+  return {
+    status: 200,
+    body: DOCUMENT_KINDS.map((kind) => ({ kind, count: counted[kind] ?? 0 })),
+  };
+}
+
+const integer = (params: URLSearchParams, name: string): number | undefined => {
+  const raw = params.get(name);
+  if (raw === null || raw === '') return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : undefined;
+};
+
+const nonEmpty = (params: URLSearchParams, name: string): string | undefined => {
+  const raw = params.get(name);
+  return raw === null || raw === '' ? undefined : raw;
+};
+
+export function listDocuments(deps: ControlDeps, id: string, params: URLSearchParams): ControlResult {
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+
+  const kind = params.get('kind');
+  if (kind === null || !isKind(kind)) return fail(400, 'a known kind is required');
+
+  const page = found.store.documents.search(kind, {
+    ...(nonEmpty(params, 'status') === undefined ? {} : { status: nonEmpty(params, 'status') as string }),
+    ...(nonEmpty(params, 'external_reference') === undefined
+      ? {}
+      : { externalReference: nonEmpty(params, 'external_reference') as string }),
+    ...(nonEmpty(params, 'q') === undefined ? {} : { text: nonEmpty(params, 'q') as string }),
+    ...(integer(params, 'limit') === undefined ? {} : { limit: integer(params, 'limit') as number }),
+    ...(integer(params, 'offset') === undefined ? {} : { offset: integer(params, 'offset') as number }),
+  });
+
+  return { status: 200, body: page };
+}
+
+export function getDocument(deps: ControlDeps, id: string, kind: string, documentId: string): ControlResult {
+  const found = resolve(deps, id);
+  if (found === null) return fail(404, 'sandbox not found');
+  if (!isKind(kind)) return fail(404, 'document not found');
+
+  const document = found.store.documents.get(kind, documentId);
+  return document === null ? fail(404, 'document not found') : { status: 200, body: document };
 }
 
 export function listWebhooks(deps: ControlDeps, id: string): ControlResult {

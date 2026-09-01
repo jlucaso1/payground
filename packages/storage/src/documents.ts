@@ -133,6 +133,13 @@ export class SqliteDocumentRepository implements DocumentRepository {
       where.push('lookup = $lookup');
       params['$lookup'] = query.lookup;
     }
+    if (query.text !== undefined && query.text !== '') {
+      // Explicit ESCAPE, otherwise a % or _ in the search text would act as a wildcard.
+      where.push(
+        "(id like $text escape '\\' or lookup like $text escape '\\' or doc like $text escape '\\')",
+      );
+      params['$text'] = `%${query.text.replace(/[%_\\]/g, '\\$&')}%`;
+    }
 
     const clause = where.join(' and ');
     const total = this.db
@@ -158,6 +165,17 @@ export class SqliteDocumentRepository implements DocumentRepository {
         .query('delete from documents where sandbox_id = ? and kind = ? and id = ?')
         .run(this.sandbox, kind, id).changes > 0
     );
+  }
+
+  countByKind(): Readonly<Record<string, number>> {
+    const rows = this.db
+      .query<{ kind: string; n: number }, [string]>(
+        'select kind, count(*) as n from documents where sandbox_id = ? group by kind',
+      )
+      .all(this.sandbox);
+    const out: Record<string, number> = {};
+    for (const row of rows) out[row.kind] = row.n;
+    return out;
   }
 
   expired(kind: DocumentKind, at: number): readonly StoredDocument[] {

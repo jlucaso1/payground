@@ -157,6 +157,19 @@ export function createApp(options: AppOptions = {}): App {
         send(control.actOnPayment(deps, path(request, 'id'), path(request, 'pid'), await json(request))),
       ),
     },
+    '/_payground/sandboxes/:id/documents/kinds': {
+      GET: admin((request) => send(control.listDocumentKinds(deps, path(request, 'id')))),
+    },
+    '/_payground/sandboxes/:id/documents': {
+      GET: admin((request) =>
+        send(control.listDocuments(deps, path(request, 'id'), new URL(request.url).searchParams)),
+      ),
+    },
+    '/_payground/sandboxes/:id/documents/:kind/:docId': {
+      GET: admin((request) =>
+        send(control.getDocument(deps, path(request, 'id'), path(request, 'kind'), path(request, 'docId'))),
+      ),
+    },
     '/_payground/sandboxes/:id/webhooks': {
       GET: admin((request) => send(control.listWebhooks(deps, path(request, 'id')))),
     },

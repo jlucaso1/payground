@@ -137,6 +137,8 @@ export interface DocumentQuery {
   readonly status?: string;
   readonly externalReference?: string;
   readonly lookup?: string;
+  /** Free text matched against the id, the lookup key and the document body. */
+  readonly text?: string;
   readonly limit?: number;
   readonly offset?: number;
   readonly order?: 'asc' | 'desc';
@@ -151,6 +153,8 @@ export interface DocumentRepository {
   search(kind: DocumentKind, query: DocumentQuery): Page<StoredDocument>;
   remove(kind: DocumentKind, id: string): boolean;
   expired(kind: DocumentKind, at: number): readonly StoredDocument[];
+  /** Document counts per kind, without loading the documents themselves. */
+  countByKind(): Readonly<Record<string, number>>;
 }
 
 export type DeliveryStatus = 'queued' | 'sending' | 'delivered' | 'retrying' | 'exhausted';

@@ -62,7 +62,7 @@ export const ORDER_TRANSACTION_STATUSES = [
   { status: 'action_required', detail: 'waiting_payment', description: 'The transaction requires an additional action and is awaiting payment. This means that the transaction has been initiated, but the payment has not yet been completed.' },
   { status: 'action_required', detail: 'waiting_capture', description: 'The transaction requires an additional action and is awaiting the capture of the payment. This means that the payment has been authorized but has not yet been captured.' },
   { status: 'action_required', detail: 'waiting_transfer', description: 'The transaction requires an additional action and is awaiting the transfer of funds. This means that the payment has been initiated, but the funds have not yet been transferred to the seller\'s account.' },
-  { status: 'action_required', detail: 'pending_challenge', description: 'Transaction pending authentication. The 3DS _Challenge_ was initiated and the buyer has up to 40 minutes to complete it.' },
+  { status: 'action_required', detail: 'pending_challenge', description: 'Transaction pending authentication. The 3DS Challenge was initiated and the buyer has up to 40 minutes to complete it.' },
   { status: 'action_required', detail: 'waiting_retry', description: 'Transaction is awaiting an automatic retry after a failed charge attempt.' },
   { status: 'charged_back', detail: 'in_process', description: 'The transaction has suffered a chargeback. This means it has been disputed and the amount is being reverted.' },
   { status: 'charged_back', detail: 'settled', description: 'The transaction has suffered a chargeback. This means it has been disputed and the amount was refunded to the buyer.' },

@@ -1,6 +1,6 @@
 {
   "source": "https://www.mercadopago.com.br/developers/en/docs/checkout-api-orders/payment-management/status/transaction-status.md",
-  "fetchedAt": "2026-08-28",
+  "fetchedAt": "2026-10-05",
   "rows": [
     {
       "status": "created",
@@ -45,7 +45,7 @@
     {
       "status": "action_required",
       "detail": "pending_challenge",
-      "description": "Transaction pending authentication. The 3DS _Challenge_ was initiated and the buyer has up to 40 minutes to complete it."
+      "description": "Transaction pending authentication. The 3DS Challenge was initiated and the buyer has up to 40 minutes to complete it."
     },
     {
       "status": "action_required",

@@ -76,6 +76,7 @@ type SubscriptionDoc = {
 };
 
 type AuthorizedPaymentDoc = {
+  debit_at?: number;
   preapproval_id: string;
   cycle: number;
   transaction_amount: number;
@@ -401,10 +402,11 @@ function nextChargeAt(doc: SubscriptionDoc): number {
   return dueAt(doc, doc.cycle);
 }
 
-function renderAuthorized(document: StoredDocument): AuthorizedPayment {
+function renderAuthorized(document: StoredDocument): AuthorizedPayment & { debit_date?: string } {
   const doc = readAuthorized(document);
-  return compact<AuthorizedPayment>({
+  return compact<AuthorizedPayment & { debit_date?: string }>({
     id: document.sequence,
+    debit_date: doc.debit_at === undefined ? undefined : formatDateTime(doc.debit_at),
     preapproval_id: doc.preapproval_id,
     status: document.status as NonNullable<AuthorizedPayment['status']>,
     status_detail: doc.status_detail,
@@ -1014,6 +1016,7 @@ function recordInvoice(
   cycle: number,
   amount: Minor,
   charge: Charge,
+  debitAt: number,
 ): StoredDocument {
   const now = context.clock.now();
   const url = notificationUrlOf(subscription);
@@ -1022,7 +1025,9 @@ function recordInvoice(
     .search('authorized_payment', { lookup: subscription.id, status: 'recycling', limit: PAGE_CAP, offset: 0 })
     .results.find((document) => readAuthorized(document).cycle === cycle);
 
+  const originalDebitAt = existing === undefined ? debitAt : readAuthorized(existing).debit_at;
   const doc: AuthorizedPaymentDoc = {
+    ...(originalDebitAt === undefined ? {} : { debit_at: originalDebitAt }),
     preapproval_id: subscription.id,
     cycle,
     transaction_amount: toDecimal(amount),
@@ -1087,7 +1092,7 @@ export function runBilling(context: ServiceContext, at: number): { charged: numb
       const cycle = proportional ? -1 : doc.cycle;
       const amount = (proportional ? (pending as Proportional).amount : amountOf(doc.auto_recurring)) as Minor;
       const result = chargeOnce(context, subscription, doc, amount, cycle);
-      recordInvoice(context, subscription, cycle, amount, result);
+      recordInvoice(context, subscription, cycle, amount, result, proportional ? (pending as Proportional).at : dueAt(doc, cycle));
       touched = true;
 
       if (!result.approved) {

@@ -486,6 +486,9 @@ describe('billing', () => {
     expect(recycled).toHaveLength(1);
     expect(recycled[0]?.['id']).toBe(failed[0]?.['id'] as number);
     expect(recycled[0]?.['status']).toBe('processed');
+    expect(recycled[0]?.['debit_date']).toBe(failed[0]?.['debit_date']);
+    expect(Date.parse(String(recycled[0]?.['debit_date']))).toBe(START);
+    expect(recycled[0]?.['last_modified']).not.toBe(failed[0]?.['last_modified']);
   });
 
   test('exposes invoices and emits the subscription topics', () => {
@@ -497,6 +500,8 @@ describe('billing', () => {
     const fetched = body(getAuthorizedPayment(context, String(invoice['id'])));
     expect(fetched['preapproval_id']).toBe(id);
     expect(fetched['currency_id']).toBe('BRL');
+    expect(fetched['debit_date']).toBeDefined();
+    expect(new Date(String(fetched['debit_date'])).getTime()).toBe(START);
     expect(getAuthorizedPayment(context, '404').ok).toBe(false);
 
     const byPayment = body(

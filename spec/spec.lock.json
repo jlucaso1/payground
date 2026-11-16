@@ -1,6 +1,6 @@
 {
   "repo": "mercadopago/openapi",
-  "commit": "73bc0e498b966591b9d27ef1222d1fdecdbf42d7",
+  "commit": "4bf7b8751434d29f5a1d9a2dfe498c69ce50d3cb",
   "sha256": {
     "spec3.json": "da7e3a7482982b1b6880a5f71411edcab54ce354a8eda55a970ec6c09973592b",
     "fixtures3.json": "d8d89c3fdba7c0369c01eab0b9ff0427200f75e113cab42ba76319327103e1d9",
